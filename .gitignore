@@ -1,0 +1,59 @@
+# Ignore project files that shouldn't be tracked
+*.sln
+*.vcxproj*
+*.opensdf
+*.sdf
+*.suo
+*.xcodeproj
+*.xcworkspace
+*.project
+*.idea/
+*.vs/
+.vscode/
+
+# Ignore binary files and intermediate build products
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+
+# Ignore compiled assets and generated files
+*.dll
+*.exe
+*.dylib
+*.app
+*.so
+*.pdb
+*.lib
+*.obj
+*.o
+*.a
+*.generated.*
+*.log
+*.pri
+
+# Ignore user-specific settings
+*.userprefs
+*.user
+*.userosscache
+*.usertask
+*.pidb
+*.swp
+*.dir-locals.el
+*.session
+
+# Ignore UBT, UAT, and other temporary files
+*_CompileHistory.txt
+*.VC.db
+*.VC.opendb
+*.tmp
+*.bak
+*.log
+
+# Ignore platform-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore build output for packaging
+Packaging/
