@@ -1,21 +1,21 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Camera/CameraComponent.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
 #include "RTSPlayerController.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class RTS_API ARTSPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
 public:
-
 	ARTSPlayerController();
 
 protected:
@@ -23,15 +23,13 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void Tick(float DeltaTime) override;
 
-	void MoveCameraForward(float Value);
-	void MoveCameraRight(float Value);
-	void ZoomCamera(float Value);
+	void MoveCameraForward(const FInputActionValue& Value);
+	void MoveCameraRight(const FInputActionValue& Value);
+	void ZoomCamera(const FInputActionValue& Value);
 
 private:
-
 	FVector2D CameraMovementInput;
 	float CameraZoomInput;
-
 	UPROPERTY(EditAnywhere)
 	float CameraSpeed = 2000.0f;
 	UPROPERTY(EditAnywhere)
@@ -41,6 +39,21 @@ private:
 	UPROPERTY(EditAnywhere)
 	float MaxZoom = 3000.0f;
 
-	UPROPERTY()
-	ACameraActor* CameraActor;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	USpringArmComponent* SpringArmComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* CameraComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputMappingContext* RTSMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* IA_MoveForward;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* IA_MoveRight;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* IA_Zoom;
 };

@@ -1,60 +1,44 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "RTSPlayerController.h"
-#include "GameFramework/SpringArmComponent.h"
-#include "Camera/CameraComponent.h"
-#include "Engine/World.h"
-#include "Camera/CameraActor.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 
 ARTSPlayerController::ARTSPlayerController()
 {
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
+
+	// Create the Spring Arm Component
+	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
+	SpringArmComponent->TargetArmLength = 1500.0f;
+	SpringArmComponent->bDoCollisionTest = false;
+	SpringArmComponent->bEnableCameraLag = true;
+	SpringArmComponent->CameraLagSpeed = 3.0f;
+
+	// Create the Camera Component
+	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
+	CameraComponent->SetupAttachment(SpringArmComponent);
 }
 
 void ARTSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Find and attach the camera actor
-	CameraActor = GetWorld()->SpawnActor<ACameraActor>(ACameraActor::StaticClass());
-	// Check if CameraActor was successfully spawned
-	if (CameraActor)
+	// Set the initial location for the player or camera
+	FVector StartLocation = FVector(0.0f, 0.0f, 0.0f);  // Example coordinates
+	if (SpringArmComponent)
 	{
-		// Set this CameraActor as the view target
-		SetViewTarget(CameraActor);
+		SpringArmComponent->SetWorldLocation(StartLocation);
 	}
-	else
+
+	// Add the mapping context for this controller
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
 	{
-		// Handle the case where the CameraActor could not be spawned
-		UE_LOG(LogTemp, Warning, TEXT("Failed to spawn CameraActor"));
-	}
-	
-}
-
-void ARTSPlayerController::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (CameraActor)
-	{
-		FVector NewLocation = CameraActor->GetActorLocation();
-
-		// Apply camera movement
-		NewLocation += FVector(CameraMovementInput.Y, CameraMovementInput.X, 0) * CameraSpeed * DeltaTime;
-
-		// Apply zoom
-		float NewZoom = CameraActor->GetActorLocation().Z + CameraZoomInput * CameraZoomSpeed * DeltaTime;
-		NewZoom = FMath::Clamp(NewZoom, MinZoom, MaxZoom);
-		NewLocation.Z = NewZoom;
-
-		CameraActor->SetActorLocation(NewLocation);
-
-		// Reset input values
-		CameraMovementInput = FVector2D::ZeroVector;
-		CameraZoomInput = 0.0f;
+		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
+		if (Subsystem)
+		{
+			Subsystem->AddMappingContext(RTSMappingContext, 1);
+		}
 	}
 }
 
@@ -62,22 +46,44 @@ void ARTSPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	InputComponent->BindAxis("MoveForward", this, &ARTSPlayerController::MoveCameraForward);
-	InputComponent->BindAxis("MoveRight", this, &ARTSPlayerController::MoveCameraRight);
-	InputComponent->BindAxis("Zoom", this, &ARTSPlayerController::ZoomCamera);
+	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
+	if (EnhancedInputComponent)
+	{
+		EnhancedInputComponent->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraForward);
+		EnhancedInputComponent->BindAction(IA_MoveRight, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraRight);
+		EnhancedInputComponent->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &ARTSPlayerController::ZoomCamera);
+	}
 }
 
-void ARTSPlayerController::MoveCameraForward(float Value)
+void ARTSPlayerController::Tick(float DeltaTime)
 {
-	CameraMovementInput.X = Value;
+	Super::Tick(DeltaTime);
+
+	if (SpringArmComponent)
+	{
+		FVector NewLocation = SpringArmComponent->GetComponentLocation();
+		NewLocation += FVector(CameraMovementInput.Y, CameraMovementInput.X, 0) * CameraSpeed * DeltaTime;
+		SpringArmComponent->SetWorldLocation(NewLocation);
+
+		float NewArmLength = SpringArmComponent->TargetArmLength + CameraZoomInput * CameraZoomSpeed * DeltaTime;
+		SpringArmComponent->TargetArmLength = FMath::Clamp(NewArmLength, MinZoom, MaxZoom);
+
+		CameraMovementInput = FVector2D::ZeroVector;
+		CameraZoomInput = 0.0f;
+	}
 }
 
-void ARTSPlayerController::MoveCameraRight(float Value)
+void ARTSPlayerController::MoveCameraForward(const FInputActionValue& Value)
 {
-	CameraMovementInput.Y = Value;
+	CameraMovementInput.Y = Value.Get<float>();
 }
 
-void ARTSPlayerController::ZoomCamera(float Value)
+void ARTSPlayerController::MoveCameraRight(const FInputActionValue& Value)
 {
-	CameraZoomInput = Value;
+	CameraMovementInput.X = Value.Get<float>();
+}
+
+void ARTSPlayerController::ZoomCamera(const FInputActionValue& Value)
+{
+	CameraZoomInput = Value.Get<float>();
 }
