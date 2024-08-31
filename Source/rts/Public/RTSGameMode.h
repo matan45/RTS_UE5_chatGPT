@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+
+
+class AGameTimeManager;
+
 #include "RTSGameMode.generated.h"
 
 /**
@@ -16,5 +20,13 @@ class RTS_API ARTSGameMode : public AGameModeBase
 
 public:
 	ARTSGameMode();
+
+	virtual void BeginPlay() override;
+
+	AGameTimeManager* GetGameTimeManager() const { return GameTimeManager; }
+
+
+private:
+	AGameTimeManager* GameTimeManager;
 	
 };

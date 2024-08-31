@@ -1,6 +1,12 @@
 #include "RTSPlayerController.h"
+
+#include <Kismet/GameplayStatics.h>
+
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "RTSGameMode.h"
+#include "GameTimeManager.h"
+
 
 ARTSPlayerController::ARTSPlayerController()
 {
@@ -24,11 +30,27 @@ void ARTSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Set the initial location for the player or camera
-	FVector StartLocation = FVector(0.0f, 0.0f, 0.0f);  // Example coordinates
-	if (SpringArmComponent)
+	// Access the GameMode
+	ARTSGameMode* GameMode = Cast<ARTSGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+
+	if (GameMode)
 	{
-		SpringArmComponent->SetWorldLocation(StartLocation);
+		// Access the GameTimeManager via GameMode
+		AGameTimeManager* GameTimeManager = GameMode->GetGameTimeManager();
+
+		if (GameTimeManager)
+		{
+			// Example: Pause the game time
+			GameTimeManager->PauseTime();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("GameTimeManager is not available in GameMode."));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RTSGameMode not found."));
 	}
 
 	// Add the mapping context for this controller
