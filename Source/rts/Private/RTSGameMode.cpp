@@ -4,10 +4,13 @@
 #include "RTSGameMode.h"
 #include "RTSPlayerController.h"
 #include "GameTimeManager.h"
+#include "RTSHUD.h"
+#include "UObject/ConstructorHelpers.h"
 
 ARTSGameMode::ARTSGameMode()
 {
 	PlayerControllerClass = ARTSPlayerController::StaticClass();
+	HUDClass = ARTSHUD::StaticClass();
 }
 
 void ARTSGameMode::BeginPlay()

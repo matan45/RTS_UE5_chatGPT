@@ -29,6 +29,7 @@ protected:
 
 private:
 	FVector2D CameraMovementInput;
+	FVector2D CameraMovementDirection;
 	float CameraZoomInput;
 	UPROPERTY(EditAnywhere)
 	float CameraSpeed = 2000.0f;
@@ -56,4 +57,13 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_Zoom;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UBoxComponent* CameraCollisionBox;
+
+	UFUNCTION()
+	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
+
+	UFUNCTION()
+	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
 };
