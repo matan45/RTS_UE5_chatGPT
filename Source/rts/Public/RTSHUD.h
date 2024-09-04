@@ -23,6 +23,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UUserWidget> GameTimeWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> MiniMapWidgetClass;
+
 	// Reference to the widget instance
 	UPROPERTY()
 	UUserWidget* GameTimeWidget;

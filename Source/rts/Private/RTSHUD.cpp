@@ -32,6 +32,8 @@ void ARTSHUD::BeginPlay()
 						AGameTimeManager* Manager;
 					};
 
+					UE_LOG(LogTemp, Warning, TEXT("SetGameTimeManagerFunc found"));
+
 					FGameTimeManagerParams Params;
 					Params.Manager = GameTimeManager;
 					GameTimeWidget->ProcessEvent(SetGameTimeManagerFunc, &Params);
@@ -53,6 +55,12 @@ void ARTSHUD::BeginPlay()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("GameTimeWidgetClass is null"));
+	}
+
+	UUserWidget* MiniMapWidget = CreateWidget<UUserWidget>(GetWorld(), MiniMapWidgetClass);
+	if (MiniMapWidget)
+	{
+		MiniMapWidget->AddToViewport();
 	}
 }
 

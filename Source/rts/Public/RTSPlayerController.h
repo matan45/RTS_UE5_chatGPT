@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "RTSPlayerController.generated.h"
@@ -31,6 +31,7 @@ private:
 	FVector2D CameraMovementInput;
 	FVector2D CameraMovementDirection;
 	float CameraZoomInput;
+
 	UPROPERTY(EditAnywhere)
 	float CameraSpeed = 2000.0f;
 	UPROPERTY(EditAnywhere)
@@ -47,9 +48,6 @@ private:
 	UCameraComponent* CameraComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* RTSMappingContext;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_MoveForward;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -60,6 +58,13 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UBoxComponent* CameraCollisionBox;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = MiniMap, meta = (AllowPrivateAccess = "true"))
+	USceneCaptureComponent2D* MiniMapCaptureComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MiniMap, meta = (AllowPrivateAccess = "true"))
+	UTextureRenderTarget2D* MiniMapRenderTarget;
+
 
 	UFUNCTION()
 	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);

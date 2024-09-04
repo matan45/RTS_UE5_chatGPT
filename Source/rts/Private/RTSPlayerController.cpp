@@ -10,8 +10,6 @@
 #include "Components/BoxComponent.h"
 
 
-
-
 ARTSPlayerController::ARTSPlayerController()
 {
 	bShowMouseCursor = true;
@@ -37,7 +35,31 @@ ARTSPlayerController::ARTSPlayerController()
 	CameraCollisionBox->SetGenerateOverlapEvents(true); // Enable overlap events
 	CameraCollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
+	// Create the mini-map capture component
+	MiniMapCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MiniMapCaptureComponent"));
+	MiniMapCaptureComponent->SetupAttachment(RootComponent);  // Attach to a stable component like RootComponent
+
+	// Initialize the render target for the mini-map
+	MiniMapRenderTarget = CreateDefaultSubobject<UTextureRenderTarget2D>(TEXT("MiniMapRenderTarget"));
+	MiniMapRenderTarget->InitAutoFormat(512, 512); // Set size of the mini-map
+	MiniMapCaptureComponent->TextureTarget = MiniMapRenderTarget;
+
+	// Configure the capture component to capture only the desired layers, such as terrain and actors
+	MiniMapCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	MiniMapCaptureComponent->ProjectionType = ECameraProjectionMode::Orthographic;
+	MiniMapCaptureComponent->OrthoWidth = 20000.0f;  // Adjust based on your level size
+	MiniMapCaptureComponent->bCaptureEveryFrame = true;
+	MiniMapCaptureComponent->bCaptureOnMovement = false;
+
+	// Positioning
+	FVector LevelCenter = FVector(0.0f, 0.0f, 0.0f);  // Replace this with actual calculation if needed
+	float HeightAboveLevel = 3000.0f;  // Set this based on how high you want the camera to be
+	MiniMapCaptureComponent->SetWorldLocation(FVector(LevelCenter.X, LevelCenter.Y, HeightAboveLevel));
+	MiniMapCaptureComponent->SetWorldRotation(FRotator(-90.0f, 0.0f, 0.0f));  // Pointing straight down
 }
+
+
+
 
 void ARTSPlayerController::BeginPlay()
 {
@@ -54,39 +76,6 @@ void ARTSPlayerController::BeginPlay()
 		{
 			Actor->OnActorBeginOverlap.AddDynamic(this, &ARTSPlayerController::OnOverlapBegin);
 			Actor->OnActorEndOverlap.AddDynamic(this, &ARTSPlayerController::OnOverlapEnd);
-		}
-	}
-
-	// Access the GameMode
-	ARTSGameMode* GameMode = Cast<ARTSGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
-
-	if (GameMode)
-	{
-		// Access the GameTimeManager via GameMode
-		AGameTimeManager* GameTimeManager = GameMode->GetGameTimeManager();
-
-		if (GameTimeManager)
-		{
-			// Example: Pause the game time
-			GameTimeManager->PauseTime();
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("GameTimeManager is not available in GameMode."));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("RTSGameMode not found."));
-	}
-
-	// Add the mapping context for this controller
-	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
-	{
-		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
-		if (Subsystem)
-		{
-			Subsystem->AddMappingContext(RTSMappingContext, 1);
 		}
 	}
 }

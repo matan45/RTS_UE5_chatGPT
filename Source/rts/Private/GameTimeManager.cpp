@@ -21,12 +21,12 @@ AGameTimeManager::AGameTimeManager()
 void AGameTimeManager::BeginPlay()
 {
 	Super::BeginPlay();
+
 }
 
 void AGameTimeManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
 
 	if (!bIsPaused)
 	{
@@ -42,9 +42,6 @@ void AGameTimeManager::UpdateGameTime(float DeltaTime)
 	// Calculate minutes and hours
 	MinutesPassed = TotalSecondsPassed / 60;
 	HoursPassed = MinutesPassed / 60;
-
-	// Optional: log time for debugging
-	UE_LOG(LogTemp, Log, TEXT("Time: %02d:%02d:%02d"), HoursPassed, MinutesPassed % 60, TotalSecondsPassed % 60);
 }
 
 void AGameTimeManager::PauseTime()
