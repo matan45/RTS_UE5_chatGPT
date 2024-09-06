@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "Blueprint/UserWidget.h"
+#include "MiniMapWidget.h"
 #include "RTSHUD.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
 class RTS_API ARTSHUD : public AHUD
@@ -17,6 +18,10 @@ class RTS_API ARTSHUD : public AHUD
 
 public:
 	virtual void BeginPlay() override;
+
+	UMiniMapWidget* GetMiniMapWidget() {
+		return MiniMapWidget;
+	}
 
 protected:
 	// Reference to the UI widget class
@@ -29,5 +34,11 @@ protected:
 	// Reference to the widget instance
 	UPROPERTY()
 	UUserWidget* GameTimeWidget;
-	
+	UPROPERTY()
+	UMiniMapWidget* MiniMapWidget;
+
+private:
+	void SetUpTimeWidget();
+	void SetUpMiniMapWidget();
+
 };

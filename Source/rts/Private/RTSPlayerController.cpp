@@ -5,6 +5,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "RTSGameMode.h"
+#include "RTSHUD.h"
+#include "MiniMapWidget.h"
 #include "GameTimeManager.h"
 #include "EngineUtils.h"  // Needed for TActorIterator
 #include "Components/BoxComponent.h"
@@ -44,6 +46,13 @@ void ARTSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	RTShud = Cast<ARTSHUD>(UGameplayStatics::GetActorOfClass(GetWorld(), ARTSHUD::StaticClass()));
+
+	if (!RTShud) {
+		UE_LOG(LogTemp, Warning, TEXT("failed to find RTShud object"));
+	}
+
+
 	// Find all the triggers and bind overlap events
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
@@ -76,21 +85,8 @@ void ARTSPlayerController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (SpringArmComponent)
-	{
-		// Apply the combined movement input and direction
-		FVector NewLocation = SpringArmComponent->GetComponentLocation();
-		NewLocation += FVector(CameraMovementInput.Y + CameraMovementDirection.Y, CameraMovementInput.X + CameraMovementDirection.X, 0) * CameraSpeed * DeltaTime;
-		SpringArmComponent->SetWorldLocation(NewLocation);
-
-		// Handle camera zoom
-		float NewArmLength = SpringArmComponent->TargetArmLength + CameraZoomInput * CameraZoomSpeed * DeltaTime;
-		SpringArmComponent->TargetArmLength = FMath::Clamp(NewArmLength, MinZoom, MaxZoom);
-
-		// Reset inputs after processing
-		CameraMovementInput = FVector2D::ZeroVector;
-		CameraZoomInput = 0.0f;
-	}
+	UpdateSpringArmComponentLoction(DeltaTime);
+	UpdateMiniMapPlayerIcon();
 }
 
 void ARTSPlayerController::MoveCameraForward(const FInputActionValue& Value)
@@ -146,5 +142,57 @@ void ARTSPlayerController::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherAc
 			CameraMovementDirection.Y = 0.0f;
 		}
 	}
+}
+
+void ARTSPlayerController::UpdateSpringArmComponentLoction(float dt)
+{
+	if (SpringArmComponent)
+	{
+		// Apply the combined movement input and direction
+		FVector NewLocation = SpringArmComponent->GetComponentLocation();
+		NewLocation += FVector(CameraMovementInput.Y + CameraMovementDirection.Y, CameraMovementInput.X + CameraMovementDirection.X, 0) * CameraSpeed * dt;
+		SpringArmComponent->SetWorldLocation(NewLocation);
+
+		// Handle camera zoom
+		float NewArmLength = SpringArmComponent->TargetArmLength + CameraZoomInput * CameraZoomSpeed * dt;
+		SpringArmComponent->TargetArmLength = FMath::Clamp(NewArmLength, MinZoom, MaxZoom);
+
+		// Reset inputs after processing
+		CameraMovementInput = FVector2D::ZeroVector;
+		CameraZoomInput = 0.0f;
+	}
+}
+
+void ARTSPlayerController::UpdateMiniMapPlayerIcon()
+{
+	if (RTShud)
+	{
+		if (UMiniMapWidget* MiniMapWidget = RTShud->GetMiniMapWidget()) {
+
+			// Get the player's world position
+			FVector PlayerWorldLocation = GetPawn()->GetActorLocation();
+
+			// Convert the world position to mini-map coordinates (implement your own logic)
+			FVector2D MiniMapPosition = ConvertWorldToMiniMapCoordinates(PlayerWorldLocation);
+
+			// Call the UpdatePlayerIconPosition function in the widget to update the player icon's position
+			MiniMapWidget->UpdatePlayerIconPosition(MiniMapPosition);
+		}
+		
+	}
+}
+
+FVector2D ARTSPlayerController::ConvertWorldToMiniMapCoordinates(FVector WorldLocation)
+{
+	// Define the bounds of the world that the mini-map covers
+	FVector2D MiniMapSize = FVector2D(512.0f, 512.0f);  // Example size of the mini-map widget
+	FVector2D WorldMin = FVector2D(-30000.0f, -30000.0f);  // Min world bounds covered by the mini-map
+	FVector2D WorldMax = FVector2D(30000.0f, 30000.0f);    // Max world bounds covered by the mini-map
+
+	// Map the world coordinates to mini-map coordinates
+	float X = (WorldLocation.X - WorldMin.X) / (WorldMax.X - WorldMin.X) * MiniMapSize.X;
+	float Y = (WorldLocation.Y - WorldMin.Y) / (WorldMax.Y - WorldMin.Y) * MiniMapSize.Y;
+
+	return FVector2D(X, Y);
 }
 

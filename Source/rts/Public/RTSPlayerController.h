@@ -4,10 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
-#include "Components/SceneCaptureComponent2D.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "InputAction.h"
-#include "InputMappingContext.h"
 #include "RTSPlayerController.generated.h"
 
 UCLASS()
@@ -31,6 +28,8 @@ private:
 	FVector2D CameraMovementInput;
 	FVector2D CameraMovementDirection;
 	float CameraZoomInput;
+
+	class ARTSHUD* RTShud;
 
 	UPROPERTY(EditAnywhere)
 	float CameraSpeed = 2000.0f;
@@ -65,4 +64,10 @@ private:
 
 	UFUNCTION()
 	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
+	UFUNCTION()
+	void UpdateSpringArmComponentLoction(float dt);
+	UFUNCTION()
+	void UpdateMiniMapPlayerIcon();
+	UFUNCTION()
+	FVector2D ConvertWorldToMiniMapCoordinates(FVector WorldLocation);
 };

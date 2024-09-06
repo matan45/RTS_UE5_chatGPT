@@ -6,8 +6,12 @@
 void ARTSHUD::BeginPlay()
 {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Warning, TEXT("Start"));
+	SetUpTimeWidget();
+	SetUpMiniMapWidget();
+}
 
+void ARTSHUD::SetUpTimeWidget()
+{
 	if (GameTimeWidgetClass)
 	{
 		// Create the widget using the class member variable
@@ -56,11 +60,19 @@ void ARTSHUD::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("GameTimeWidgetClass is null"));
 	}
+}
 
-	UUserWidget* MiniMapWidget = CreateWidget<UUserWidget>(GetWorld(), MiniMapWidgetClass);
-	if (MiniMapWidget)
-	{
-		MiniMapWidget->AddToViewport();
+void ARTSHUD::SetUpMiniMapWidget()
+{
+	if (MiniMapWidgetClass) {
+
+		MiniMapWidget = CreateWidget<UMiniMapWidget>(GetWorld(), MiniMapWidgetClass);
+
+		if (MiniMapWidget)
+		{
+			MiniMapWidget->AddToViewport();
+		}
 	}
+
 }
 
