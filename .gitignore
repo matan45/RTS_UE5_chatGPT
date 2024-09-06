@@ -17,6 +17,7 @@ DerivedDataCache/
 Intermediate/
 Saved/
 Build/
+Content/StarterContent/
 
 # Ignore compiled assets and generated files
 *.dll
