@@ -27,6 +27,9 @@ public:
 
 	// Game time properties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Game Time")
+	int32 TotalMiniSecondsPassed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Game Time")
 	int32 TotalSecondsPassed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Game Time")

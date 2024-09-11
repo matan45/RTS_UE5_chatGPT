@@ -37,9 +37,10 @@ void AGameTimeManager::Tick(float DeltaTime)
 void AGameTimeManager::UpdateGameTime(float DeltaTime)
 {
 	// Accumulate time
-	TotalSecondsPassed += FMath::RoundToInt(DeltaTime)+1;
+	TotalMiniSecondsPassed += FMath::RoundToInt(DeltaTime)+1;
 
 	// Calculate minutes and hours
+	TotalSecondsPassed = TotalMiniSecondsPassed / 60;
 	MinutesPassed = TotalSecondsPassed / 60;
 	HoursPassed = MinutesPassed / 60;
 }

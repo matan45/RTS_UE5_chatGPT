@@ -15,6 +15,10 @@ class RTS_API ARTSPlayerController : public APlayerController
 public:
 	ARTSPlayerController();
 
+	//TODO when selecting building to construct show preview mesh
+	// add building validation location on the terrain 
+	//add UInputAction for select units and move them to location
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
