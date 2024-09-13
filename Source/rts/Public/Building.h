@@ -17,17 +17,43 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
+	//bool IsPreviewBuildingMesh() const;
+	bool IsBuildingMesh() const;
+	//bool IsStartBuildingMesh() const;
+
+	//void SetPreviewBuildingMesh(bool Visible);
+	void SetBuildingMesh(bool Visible);
+	//void SetStartBuildingMesh(bool Visible);
+
+	
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	
 	//TODO 
-	//add unit widget
+	//add unit widget ui for selet with building to build
 	//add mesh
 	//add hp
 	//add queue for training units
 	//add really point
 	//add mini map icon
-	
+	//show constraction proggres bar
+private:
+
+	UPROPERTY(EditDefaultsOnly, Category = "Location")
+	UMaterialInterface* ValidLocationMaterial;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Location")
+	UMaterialInterface* InvalidLocationMaterial;
+
+	UPROPERTY(VisibleAnywhere, Category = "Building")
+	UStaticMeshComponent* BuildingMesh;
+
+	/**UPROPERTY(VisibleAnywhere, Category = "Building")
+	UStaticMeshComponent* PreviewBuildingMesh;
+
+	UPROPERTY(VisibleAnywhere, Category = "Building")
+	UStaticMeshComponent* StartBuildingMesh;*/
 
 };

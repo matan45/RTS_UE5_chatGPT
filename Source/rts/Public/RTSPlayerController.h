@@ -15,6 +15,8 @@ class RTS_API ARTSPlayerController : public APlayerController
 public:
 	ARTSPlayerController();
 
+	void StartPreviewBuildingSelected(class ABuilding* UIBuilding);
+
 	//TODO when selecting building to construct show preview mesh
 	// add building validation location on the terrain 
 	//add UInputAction for select units and move them to location
@@ -29,6 +31,8 @@ protected:
 	void ZoomCamera(const FInputActionValue& Value);
 
 private:
+	class ABuilding* Building;
+
 	FVector2D CameraMovementInput;
 	FVector2D CameraMovementDirection;
 	float CameraZoomInput;
@@ -74,4 +78,8 @@ private:
 	void UpdateMiniMapPlayerIcon();
 	UFUNCTION()
 	FVector2D ConvertWorldToMiniMapCoordinates(FVector WorldLocation);
+
+	void UpdateBuildingPreview();
+
+	bool GetMouseHitLocation(FVector& OutHitLocation);
 };

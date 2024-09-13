@@ -6,6 +6,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "RTSGameMode.h"
 #include "RTSHUD.h"
+#include "Building.h"
 #include "MiniMapWidget.h"
 #include "GameTimeManager.h"
 #include "EngineUtils.h"  // Needed for TActorIterator
@@ -87,6 +88,14 @@ void ARTSPlayerController::Tick(float DeltaTime)
 
 	UpdateSpringArmComponentLoction(DeltaTime);
 	UpdateMiniMapPlayerIcon();
+/**
+	if (Building) {
+		if (Building->IsPreviewBuildingMesh()) {
+			UE_LOG(LogTemp, Warning, TEXT("PreviewBuildingMesh RTSController"));
+			UpdateBuildingPreview();
+		}
+	}
+	*/
 }
 
 void ARTSPlayerController::MoveCameraForward(const FInputActionValue& Value)
@@ -102,6 +111,13 @@ void ARTSPlayerController::MoveCameraRight(const FInputActionValue& Value)
 void ARTSPlayerController::ZoomCamera(const FInputActionValue& Value)
 {
 	CameraZoomInput = Value.Get<float>();
+}
+
+void ARTSPlayerController::StartPreviewBuildingSelected(ABuilding* UIBuilding)
+{
+	if (UIBuilding) {
+		Building = UIBuilding;
+	}
 }
 
 void ARTSPlayerController::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
@@ -171,7 +187,8 @@ void ARTSPlayerController::UpdateMiniMapPlayerIcon()
 
 			// Get the player's world position
 			FVector PlayerWorldLocation = GetPawn()->GetActorLocation();
-
+			//TODO refactor mini map class for map to add and remove and update images dynamic
+			// move ConvertWorldToMiniMapCoordinates to mini map class
 			// Convert the world position to mini-map coordinates (implement your own logic)
 			FVector2D MiniMapPosition = ConvertWorldToMiniMapCoordinates(PlayerWorldLocation);
 
@@ -194,5 +211,47 @@ FVector2D ARTSPlayerController::ConvertWorldToMiniMapCoordinates(FVector WorldLo
 	float Y = (WorldLocation.Y - WorldMin.Y) / (WorldMax.Y - WorldMin.Y) * MiniMapSize.Y;
 
 	return FVector2D(X, Y);
+}
+
+void ARTSPlayerController::UpdateBuildingPreview()
+{
+	if (Building)
+	{
+		FVector HitLocation;
+		if (GetMouseHitLocation(HitLocation))
+		{
+			// Move the preview to the mouse hit location
+			Building->SetActorLocation(HitLocation);
+			UE_LOG(LogTemp, Warning, TEXT("The vector value is: %s"), *HitLocation.ToString());
+		}
+	}
+}
+
+bool ARTSPlayerController::GetMouseHitLocation(FVector& OutHitLocation)
+{
+	FHitResult HitResult;
+	// Get the current mouse cursor position on the screen
+	int32 ViewportSizeX, ViewportSizeY;
+	GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+	FVector2D MousePosition;
+	if (GetMousePosition(MousePosition.X, MousePosition.Y))
+	{
+		// Convert the screen position to a world direction
+		FVector WorldLocation, WorldDirection;
+		DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection);
+
+		// Perform a line trace (raycast) from the camera to the world
+		FVector Start = WorldLocation;
+		FVector End = Start + (WorldDirection * 10000.0f);  // Large enough distance to hit something in the world
+
+		if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility))
+		{
+			OutHitLocation = HitResult.Location;
+			return true;
+		}
+	}
+
+	return false;
 }
 

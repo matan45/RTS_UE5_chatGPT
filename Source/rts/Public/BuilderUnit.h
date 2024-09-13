@@ -22,22 +22,15 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+private:
 	//TODO 
-	//add building widget
-	//add mesh
+	//add building widget for select witch building to build
+	UPROPERTY(EditAnywhere, Category = "BuilderUnit|UI")
+	TSubclassOf<class UBuilderUintWidget> BuildingSelectionWidgetClass;
 	//add animation for moving and building
 	//add hp bar
 	//add navigating for move location
 	//add moving speed
 	//add mini map icon
-
-	UPROPERTY(BlueprintReadWrite, Category = "Building")
-	float BuildProgress;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building")
-	float BuildTime;
-
-	bool bIsBuilding;
-
 
 };
