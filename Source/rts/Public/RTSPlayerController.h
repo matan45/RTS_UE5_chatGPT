@@ -90,4 +90,5 @@ private:
 	bool IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance);
 	bool IsLocationFreeOfObstacles(FVector BuildingLocation, FVector BuildingExtents);
 	bool CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents);
+	bool PerformRaycast(FHitResult& OutHitResult, const FVector& StartLocation, const FVector& EndLocation, ECollisionChannel CollisionChannel);
 };

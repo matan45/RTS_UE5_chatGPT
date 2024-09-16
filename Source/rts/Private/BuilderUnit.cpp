@@ -2,7 +2,6 @@
 #include "BuilderUnit.h"
 #include "BuilderUintWidget.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/BoxComponent.h"
 
 
 // Sets default values
@@ -11,12 +10,9 @@ ABuilderUnit::ABuilderUnit()
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	UBoxComponent* BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
-	BoxComponent->SetupAttachment(RootComponent); // Attach to the root component
-	BoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	BoxComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic); // Adjust as needed
-	BoxComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	BoxComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel1);  // Use the custom channel you created
 }
 
 // Called when the game starts or when spawned

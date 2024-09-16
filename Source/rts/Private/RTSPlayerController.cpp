@@ -121,29 +121,54 @@ void ARTSPlayerController::Select(const FInputActionValue& Value)
 {
 	
 	FHitResult HitResult;
-	GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, HitResult);
+	FCollisionQueryParams QueryParams;
 
-	if (HitResult.bBlockingHit) {
-		AActor* HitActor = HitResult.GetActor();
-		UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
+	// Ignore the player's pawn
+	QueryParams.AddIgnoredActor(GetPawn());
 
-		if (ABuilderUnit* Unit = Cast<ABuilderUnit>(HitActor)) {
-			UE_LOG(LogTemp, Warning, TEXT("Selected BuilderUnit: %s"), *Unit->GetName());
-			BuilderUnit = Unit;
+	// Get the mouse position in screen space
+	FVector2D MousePosition;
+	if (GetMousePosition(MousePosition.X, MousePosition.Y))
+	{
+		FVector WorldLocation, WorldDirection;
 
-			if (BuilderUnit) {
-				BuilderUnit->DisplayUI(true);
+		// Convert the 2D screen position to a 3D world direction
+		DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection);
+
+		// Define the trace start and end points
+		FVector Start = WorldLocation;
+		FVector End = Start + (WorldDirection * 10000.0f); // A long trace distance
+
+		// Perform the trace
+		if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_GameTraceChannel1, QueryParams))
+		{
+			AActor* HitActor = HitResult.GetActor();
+			UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
+
+			// Check if the hit actor is a BuilderUnit
+			if (ABuilderUnit* Unit = Cast<ABuilderUnit>(HitActor))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Selected BuilderUnit: %s"), *Unit->GetName());
+				BuilderUnit = Unit;
+
+				if (BuilderUnit)
+				{
+					BuilderUnit->DisplayUI(true);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("BuilderUnit is nullptr after casting."));
+				}
 			}
-			else {
-				UE_LOG(LogTemp, Warning, TEXT("BuilderUnit is nullptr after casting."));
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Hit actor is not a BuilderUnit."));
 			}
 		}
-		else {
-			UE_LOG(LogTemp, Warning, TEXT("Hit actor is not a BuilderUnit."));
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("No hit detected."));
 		}
-	}
-	else {
-		UE_LOG(LogTemp, Warning, TEXT("No hit detected."));
 	}
 }
 
@@ -266,22 +291,18 @@ void ARTSPlayerController::UpdateBuildingPreview()
 bool ARTSPlayerController::GetMouseHitLocation(FVector& OutHitLocation)
 {
 	FHitResult HitResult;
-	// Get the current mouse cursor position on the screen
-	int32 ViewportSizeX, ViewportSizeY;
-	GetViewportSize(ViewportSizeX, ViewportSizeY);
+	FVector WorldLocation, WorldDirection;
 
+	// Get the current mouse cursor position and convert to world space
 	FVector2D MousePosition;
 	if (GetMousePosition(MousePosition.X, MousePosition.Y))
 	{
-		// Convert the screen position to a world direction
-		FVector WorldLocation, WorldDirection;
 		DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection);
 
-		// Perform a line trace (raycast) from the camera to the world
 		FVector Start = WorldLocation;
-		FVector End = Start + (WorldDirection * 10000.0f);  // Large enough distance to hit something in the world
+		FVector End = Start + (WorldDirection * 10000.0f); // Trace for a long distance
 
-		if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility))
+		if (PerformRaycast(HitResult, Start, End, ECC_Visibility)) // Using the unified raycast
 		{
 			OutHitLocation = HitResult.Location;
 			return true;
@@ -293,28 +314,17 @@ bool ARTSPlayerController::GetMouseHitLocation(FVector& OutHitLocation)
 
 bool ARTSPlayerController::GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight)
 {
-	// Define a starting point above the terrain and an endpoint far below the terrain
-	FVector StartLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z + 1000.0f); // 1000 units above the terrain
-	FVector EndLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z - 10000.0f); // 10,000 units below the terrain
-
-	// Perform a line trace downwards to find the terrain
 	FHitResult HitResult;
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(Building); // Ignore the preview actor
+	FVector StartLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z + 1000.0f); // Start above the terrain
+	FVector EndLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z - 10000.0f);  // End below the terrain
 
-	// Perform the line trace (use ECC_Visibility or ECC_WorldStatic for terrain/ground)
-	if (GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECC_Visibility, QueryParams))
+	if (PerformRaycast(HitResult, StartLocation, EndLocation, ECC_Visibility))
 	{
-		// If we hit something (like the terrain), retrieve the Z position of the hit
 		OutTerrainHeight = HitResult.Location.Z;
-
-		// Optionally draw debug lines to visualize the trace (for debugging)
-		// DrawDebugLine(GetWorld(), StartLocation, HitResult.Location, FColor::Green, false, 1.0f, 0, 5.0f);
-
-		return true; // We hit the terrain, so return true
+		return true;
 	}
 
-	return false; // We didn't hit any valid terrain
+	return false;
 }
 
 bool ARTSPlayerController::IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance)
@@ -374,5 +384,14 @@ bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, F
 	);
 
 	return !bHit; // Return true if no hit (i.e., no obstacles detected)
+}
+
+bool ARTSPlayerController::PerformRaycast(FHitResult& OutHitResult, const FVector& StartLocation, const FVector& EndLocation, ECollisionChannel CollisionChannel)
+{
+	// Perform a line trace (raycast)
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(Building); // Ignore the building preview
+
+	return GetWorld()->LineTraceSingleByChannel(OutHitResult, StartLocation, EndLocation, CollisionChannel, QueryParams);
 }
 
