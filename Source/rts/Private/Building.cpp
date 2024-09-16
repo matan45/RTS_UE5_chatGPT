@@ -10,8 +10,11 @@ ABuilding::ABuilding()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	RootSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	RootComponent = RootSceneComponent;
+
 	BuildingMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BuildingMesh"));
-	RootComponent = BuildingMesh;
+	BuildingMesh->SetupAttachment(RootComponent);
 	UStaticMesh* MeshBuilding = LoadObject<UStaticMesh>(nullptr, TEXT("/Script/Engine.StaticMesh'/Game/StaticMeshes/Shape_Torus.Shape_Torus'"));
 
 	if (BuildingMesh)
@@ -20,50 +23,40 @@ ABuilding::ABuilding()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Could not find building mesh."));
+		UE_LOG(LogTemp, Warning, TEXT("Could not find MeshBuilding."));
 	}
 
-	/**PreviewBuildingMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PreviewBuildingMesh"));
-	PreviewBuildingMesh->SetupAttachment(BuildingMesh);
+	PreviewBuildingMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PreviewBuildingMesh"));
+	PreviewBuildingMesh->SetupAttachment(RootComponent);
+	UStaticMesh* MeshPreviewBuilding = LoadObject<UStaticMesh>(nullptr, TEXT("/Script/Engine.StaticMesh'/Game/StaticMeshes/Shape_QuadPyramid.Shape_QuadPyramid'"));
+
+	if (MeshPreviewBuilding)
+	{
+		PreviewBuildingMesh->SetStaticMesh(MeshPreviewBuilding);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Could not find MeshPreviewBuilding."));
+	}
 
 	StartBuildingMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StartBuildingMesh"));
-	StartBuildingMesh->SetupAttachment(BuildingMesh);*/
+	StartBuildingMesh->SetupAttachment(RootComponent);
+	UStaticMesh* MeshStartBuilding = LoadObject<UStaticMesh>(nullptr, TEXT("/Script/Engine.StaticMesh'/Game/StaticMeshes/Shape_Sphere.Shape_Sphere'"));
+
+	if (MeshStartBuilding)
+	{
+		StartBuildingMesh->SetStaticMesh(MeshStartBuilding);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Could not find MeshStartBuilding."));
+	}
 }
 
 // Called when the game starts or when spawned
 void ABuilding::BeginPlay()
 {
 	Super::BeginPlay();
-	/**if (BuildingMesh)
-	{
-		BuildingMesh->SetVisibility(true);
-		UE_LOG(LogTemp, Warning, TEXT("BuildingMesh is true in BeginPlay."));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("BuildingMesh is true in BeginPlay."));
-	}*/
-	/**
-	if (PreviewBuildingMesh)
-	{
-		PreviewBuildingMesh->SetVisibility(false);
-		UE_LOG(LogTemp, Warning, TEXT("PreviewBuildingMesh is true in BeginPlay."));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("PreviewBuildingMesh is null in BeginPlay."));
-	}
-
-	if (StartBuildingMesh)
-	{
-		StartBuildingMesh->SetVisibility(false);
-		UE_LOG(LogTemp, Warning, TEXT("StartBuildingMesh is true in BeginPlay."));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("StartBuildingMesh is null in BeginPlay."));
-	}*/
-	
 }
 
 // Called every frame
@@ -72,7 +65,7 @@ void ABuilding::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	
 }
-/**
+
 bool ABuilding::IsPreviewBuildingMesh() const
 {
 	if (PreviewBuildingMesh) {
@@ -80,7 +73,7 @@ bool ABuilding::IsPreviewBuildingMesh() const
 	}
 	UE_LOG(LogTemp, Error, TEXT("PreviewBuildingMesh is null"));
 	return false;
-}*/
+}
 
 bool ABuilding::IsBuildingMesh() const
 {
@@ -91,7 +84,7 @@ bool ABuilding::IsBuildingMesh() const
 	
 	return false;
 }
-/**
+
 bool ABuilding::IsStartBuildingMesh() const
 {
 	if (StartBuildingMesh) {
@@ -111,7 +104,7 @@ void ABuilding::SetPreviewBuildingMesh(bool Visible)
 		UE_LOG(LogTemp, Error, TEXT("PreviewBuildingMesh is null"));
 	}
 	
-}*/
+}
 
 void ABuilding::SetBuildingMesh(bool Visible)
 {
@@ -122,7 +115,7 @@ void ABuilding::SetBuildingMesh(bool Visible)
 		UE_LOG(LogTemp, Error, TEXT("BuildingMesh is null"));
 	}
 }
-/**
+
 void ABuilding::SetStartBuildingMesh(bool Visible)
 {
 	if (StartBuildingMesh) {
@@ -131,6 +124,6 @@ void ABuilding::SetStartBuildingMesh(bool Visible)
 	else {
 		UE_LOG(LogTemp, Error, TEXT("StartBuildingMesh is null"));
 	}
-}*/
+}
 
 

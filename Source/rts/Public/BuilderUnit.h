@@ -18,6 +18,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	void DisplayUI(bool bShowUI);
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -32,5 +33,7 @@ private:
 	//add navigating for move location
 	//add moving speed
 	//add mini map icon
+
+	UBuilderUintWidget* BuildingWidget;
 
 };

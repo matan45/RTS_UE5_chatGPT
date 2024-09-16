@@ -17,13 +17,13 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
-	//bool IsPreviewBuildingMesh() const;
+	bool IsPreviewBuildingMesh() const;
 	bool IsBuildingMesh() const;
-	//bool IsStartBuildingMesh() const;
+	bool IsStartBuildingMesh() const;
 
-	//void SetPreviewBuildingMesh(bool Visible);
+	void SetPreviewBuildingMesh(bool Visible);
 	void SetBuildingMesh(bool Visible);
-	//void SetStartBuildingMesh(bool Visible);
+	void SetStartBuildingMesh(bool Visible);
 
 	
 
@@ -50,10 +50,13 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Building")
 	UStaticMeshComponent* BuildingMesh;
 
-	/**UPROPERTY(VisibleAnywhere, Category = "Building")
+	UPROPERTY(VisibleAnywhere, Category = "Building")
+	USceneComponent* RootSceneComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "Building")
 	UStaticMeshComponent* PreviewBuildingMesh;
 
 	UPROPERTY(VisibleAnywhere, Category = "Building")
-	UStaticMeshComponent* StartBuildingMesh;*/
+	UStaticMeshComponent* StartBuildingMesh;
 
 };

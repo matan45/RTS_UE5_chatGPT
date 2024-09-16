@@ -31,11 +31,6 @@ void UBuilderUintWidget::SeletedFristBuilding()
 
 		// Replace ABuildingPreview with your actual class
 		Building = GetWorld()->SpawnActor<ABuilding>(ABuilding::StaticClass(), SpawnParams);
-
-		FVector NewLocation = FVector(33670.0f, 9640.0f, 60.0f);
-		Building->SetActorLocation(NewLocation);
-		Building->SetActorHiddenInGame(false);
-		Building->SetBuildingMesh(true);
 	}
 
 
@@ -43,10 +38,10 @@ void UBuilderUintWidget::SeletedFristBuilding()
 	{
 
 		// Your building logic here...
-		//Building->SetPreviewBuildingMesh(true);
-		//Building->SetBuildingMesh(false);
-		//Building->SetStartBuildingMesh(false);
-		//PlayerController->StartPreviewBuildingSelected(Building);
+		Building->SetPreviewBuildingMesh(true);
+		Building->SetBuildingMesh(false);
+		Building->SetStartBuildingMesh(false);
+		PlayerController->StartPreviewBuildingSelected(Building);
 	}
 	else
 	{

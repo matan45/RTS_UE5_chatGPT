@@ -1,15 +1,23 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "BuilderUnit.h"
 #include "BuilderUintWidget.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
+
 
 // Sets default values
 ABuilderUnit::ABuilderUnit()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	UBoxComponent* BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
+	BoxComponent->SetupAttachment(RootComponent); // Attach to the root component
+	BoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BoxComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic); // Adjust as needed
+	BoxComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	BoxComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
 }
-
-
 
 // Called when the game starts or when spawned
 void ABuilderUnit::BeginPlay()
@@ -17,14 +25,51 @@ void ABuilderUnit::BeginPlay()
 	Super::BeginPlay();
 	if (BuildingSelectionWidgetClass)
 	{
-		UBuilderUintWidget* BuildingWidget = CreateWidget<UBuilderUintWidget>(GetWorld(), BuildingSelectionWidgetClass);
+		BuildingWidget = CreateWidget<UBuilderUintWidget>(GetWorld(), BuildingSelectionWidgetClass);
+
 		if (BuildingWidget)
 		{
-			BuildingWidget->AddToViewport();
+			UE_LOG(LogTemp, Log, TEXT("Building widget created successfully."));
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Failed to create building widget."));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BuildingSelectionWidgetClass is not set."));
 	}
 }
 
+
+void ABuilderUnit::DisplayUI(bool bShowUI)
+{
+	if (bShowUI)
+	{
+		if (BuildingWidget)
+		{
+			BuildingWidget->AddToViewport();
+			UE_LOG(LogTemp, Log, TEXT("Widget added to viewport."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("BuildingWidget is nullptr."));
+		}
+	}
+	else
+	{
+		if (BuildingWidget)
+		{
+			BuildingWidget->RemoveFromParent();
+			UE_LOG(LogTemp, Log, TEXT("Widget removed from viewport."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("BuildingWidget is nullptr."));
+		}
+	}
+}
 
 // Called every frame
 void ABuilderUnit::Tick(float DeltaTime)

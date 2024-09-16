@@ -5,6 +5,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "InputAction.h"
+#include "InputMappingContext.h" // Update the path as needed
 #include "RTSPlayerController.generated.h"
 
 UCLASS()
@@ -30,8 +31,12 @@ protected:
 	void MoveCameraRight(const FInputActionValue& Value);
 	void ZoomCamera(const FInputActionValue& Value);
 
+	void Select(const FInputActionValue& Value);
+	void Cancel(const FInputActionValue& Value);
+
 private:
 	class ABuilding* Building;
+	class ABuilderUnit* BuilderUnit;
 
 	FVector2D CameraMovementInput;
 	FVector2D CameraMovementDirection;
@@ -55,6 +60,9 @@ private:
 	UCameraComponent* CameraComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputMappingContext* InputMapping;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_MoveForward;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -63,15 +71,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_Zoom;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UBoxComponent* CameraCollisionBox;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* IA_Select;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* IA_Cancel;
 
-
-	UFUNCTION()
-	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
-
-	UFUNCTION()
-	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
 	UFUNCTION()
 	void UpdateSpringArmComponentLoction(float dt);
 	UFUNCTION()
@@ -82,4 +86,8 @@ private:
 	void UpdateBuildingPreview();
 
 	bool GetMouseHitLocation(FVector& OutHitLocation);
+	bool GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight);
+	bool IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance);
+	bool IsLocationFreeOfObstacles(FVector BuildingLocation, FVector BuildingExtents);
+	bool CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents);
 };

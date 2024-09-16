@@ -9,7 +9,9 @@
 #include "Building.h"
 #include "MiniMapWidget.h"
 #include "GameTimeManager.h"
-#include "EngineUtils.h"  // Needed for TActorIterator
+#include "MyUtility.h"
+#include "BuilderUnit.h"
+#include "EnhancedInputComponent.h"
 #include "Components/BoxComponent.h"
 
 
@@ -30,17 +32,7 @@ ARTSPlayerController::ARTSPlayerController()
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
 
-	// Initialize components
-	CameraCollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CameraCollisionBox"));
-	CameraCollisionBox->SetupAttachment(CameraComponent); // Attach to CameraComponent
-	CameraCollisionBox->SetBoxExtent(FVector(50.0f, 50.0f, 50.0f)); // Adjust the size as needed
-	CameraCollisionBox->SetCollisionProfileName(TEXT("Trigger")); // Use an appropriate collision profile
-	CameraCollisionBox->SetGenerateOverlapEvents(true); // Enable overlap events
-	CameraCollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	
 }
-
-
 
 
 void ARTSPlayerController::BeginPlay()
@@ -52,34 +44,46 @@ void ARTSPlayerController::BeginPlay()
 	if (!RTShud) {
 		UE_LOG(LogTemp, Warning, TEXT("failed to find RTShud object"));
 	}
-
-
-	// Find all the triggers and bind overlap events
-	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
-	{
-		AActor* Actor = *It;
-		if (Actor->ActorHasTag("LeftBorderTrigger") ||
-			Actor->ActorHasTag("RightBorderTrigger") ||
-			Actor->ActorHasTag("TopBorderTrigger") ||
-			Actor->ActorHasTag("BottomBorderTrigger"))
-		{
-			Actor->OnActorBeginOverlap.AddDynamic(this, &ARTSPlayerController::OnOverlapBegin);
-			Actor->OnActorEndOverlap.AddDynamic(this, &ARTSPlayerController::OnOverlapEnd);
-		}
-	}
 }
 
 void ARTSPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
-	if (EnhancedInputComponent)
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		EnhancedInputComponent->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraForward);
-		EnhancedInputComponent->BindAction(IA_MoveRight, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraRight);
-		EnhancedInputComponent->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &ARTSPlayerController::ZoomCamera);
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+		{
+			Subsystem->ClearAllMappings();
+
+			if (InputMapping)
+			{
+				Subsystem->AddMappingContext(InputMapping, 1);
+			}
+		}
+
+		if (IA_MoveForward)
+		{
+			EnhancedInputComponent->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraForward);
+		}
+		if (IA_MoveRight)
+		{
+			EnhancedInputComponent->BindAction(IA_MoveRight, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraRight);
+		}
+		if (IA_Zoom)
+		{
+			EnhancedInputComponent->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &ARTSPlayerController::ZoomCamera);
+		}
+		if (IA_Select)
+		{
+			EnhancedInputComponent->BindAction(IA_Select, ETriggerEvent::Triggered, this, &ARTSPlayerController::Select);
+		}
+		if (IA_Cancel)
+		{
+			EnhancedInputComponent->BindAction(IA_Cancel, ETriggerEvent::Triggered, this, &ARTSPlayerController::Cancel);
+		}
 	}
+
 }
 
 void ARTSPlayerController::Tick(float DeltaTime)
@@ -88,14 +92,13 @@ void ARTSPlayerController::Tick(float DeltaTime)
 
 	UpdateSpringArmComponentLoction(DeltaTime);
 	UpdateMiniMapPlayerIcon();
-/**
+
 	if (Building) {
 		if (Building->IsPreviewBuildingMesh()) {
-			UE_LOG(LogTemp, Warning, TEXT("PreviewBuildingMesh RTSController"));
 			UpdateBuildingPreview();
 		}
 	}
-	*/
+
 }
 
 void ARTSPlayerController::MoveCameraForward(const FInputActionValue& Value)
@@ -113,6 +116,52 @@ void ARTSPlayerController::ZoomCamera(const FInputActionValue& Value)
 	CameraZoomInput = Value.Get<float>();
 }
 
+
+void ARTSPlayerController::Select(const FInputActionValue& Value)
+{
+	
+	FHitResult HitResult;
+	GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, HitResult);
+
+	if (HitResult.bBlockingHit) {
+		AActor* HitActor = HitResult.GetActor();
+		UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
+
+		if (ABuilderUnit* Unit = Cast<ABuilderUnit>(HitActor)) {
+			UE_LOG(LogTemp, Warning, TEXT("Selected BuilderUnit: %s"), *Unit->GetName());
+			BuilderUnit = Unit;
+
+			if (BuilderUnit) {
+				BuilderUnit->DisplayUI(true);
+			}
+			else {
+				UE_LOG(LogTemp, Warning, TEXT("BuilderUnit is nullptr after casting."));
+			}
+		}
+		else {
+			UE_LOG(LogTemp, Warning, TEXT("Hit actor is not a BuilderUnit."));
+		}
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("No hit detected."));
+	}
+}
+
+
+void ARTSPlayerController::Cancel(const FInputActionValue& Value)
+{
+	if (Building) {
+		Building->Destroy();
+		Building = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("Cancel action Building"));
+	}
+	if (BuilderUnit) {
+		BuilderUnit->DisplayUI(false);
+		BuilderUnit = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("Cancel action BuilderUnit"));
+	}
+}
+
 void ARTSPlayerController::StartPreviewBuildingSelected(ABuilding* UIBuilding)
 {
 	if (UIBuilding) {
@@ -120,45 +169,6 @@ void ARTSPlayerController::StartPreviewBuildingSelected(ABuilding* UIBuilding)
 	}
 }
 
-void ARTSPlayerController::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
-{
-	UE_LOG(LogTemp, Warning, TEXT("OnOverlapBegin"));
-	if (OtherActor == GetPawn())
-	{
-		if (OverlappedActor->ActorHasTag("LeftBorderTrigger"))
-		{
-			CameraMovementDirection.X = -1.0f;
-		}
-		else if (OverlappedActor->ActorHasTag("RightBorderTrigger"))
-		{
-			CameraMovementDirection.X = 1.0f;
-		}
-		else if (OverlappedActor->ActorHasTag("TopBorderTrigger"))
-		{
-			CameraMovementDirection.Y = -1.0f;
-		}
-		else if (OverlappedActor->ActorHasTag("BottomBorderTrigger"))
-		{
-			CameraMovementDirection.Y = 1.0f;
-		}
-	}
-}
-
-void ARTSPlayerController::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
-{
-	UE_LOG(LogTemp, Warning, TEXT("OnOverlapEnd"));
-	if (OtherActor == GetPawn())
-	{
-		if (OverlappedActor->ActorHasTag("LeftBorderTrigger") || OverlappedActor->ActorHasTag("RightBorderTrigger"))
-		{
-			CameraMovementDirection.X = 0.0f;
-		}
-		else if (OverlappedActor->ActorHasTag("TopBorderTrigger") || OverlappedActor->ActorHasTag("BottomBorderTrigger"))
-		{
-			CameraMovementDirection.Y = 0.0f;
-		}
-	}
-}
 
 void ARTSPlayerController::UpdateSpringArmComponentLoction(float dt)
 {
@@ -195,10 +205,11 @@ void ARTSPlayerController::UpdateMiniMapPlayerIcon()
 			// Call the UpdatePlayerIconPosition function in the widget to update the player icon's position
 			MiniMapWidget->UpdatePlayerIconPosition(MiniMapPosition);
 		}
-		
+
 	}
 }
 
+//todo move it to the mini map class
 FVector2D ARTSPlayerController::ConvertWorldToMiniMapCoordinates(FVector WorldLocation)
 {
 	// Define the bounds of the world that the mini-map covers
@@ -217,12 +228,37 @@ void ARTSPlayerController::UpdateBuildingPreview()
 {
 	if (Building)
 	{
+		Building->SetActorEnableCollision(false); // Disable collision for the preview
 		FVector HitLocation;
 		if (GetMouseHitLocation(HitLocation))
 		{
-			// Move the preview to the mouse hit location
-			Building->SetActorLocation(HitLocation);
-			UE_LOG(LogTemp, Warning, TEXT("The vector value is: %s"), *HitLocation.ToString());
+			float TerrainHeight;
+			if (GetTerrainHeightAtLocation(HitLocation, TerrainHeight)) {
+				// Move the preview to the mouse hit location
+				FVector TargetLocation = FVector(HitLocation.X, HitLocation.Y, TerrainHeight);
+
+				// Smoothly move the preview towards the target location
+				FVector CurrentLocation = Building->GetActorLocation();
+				FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, GetWorld()->GetDeltaSeconds(), 10.0f); // Adjust interpolation speed
+
+				Building->SetActorLocation(NewLocation);
+
+				// Apply rotation if you've implemented rotation functionality (current yaw rotation)
+				//FRotator NewRotation = FRotator(0.0f, CurrentYawRotation, 0.0f); // Assuming you store yaw
+				//Building->SetActorRotation(NewRotation);
+
+				 // Check if the placement is valid
+/*
+// 				if (CanPlaceBuildingAtLocation(NewLocation, BuildingExtents))
+// 				{
+// 					Building->SetValidPlacement(true); // Example: Set material to green
+// 				}
+// 				else
+// 				{
+// 					Building->SetValidPlacement(false); // Example: Set material to red
+// 				}
+*/
+			}
 		}
 	}
 }
@@ -253,5 +289,90 @@ bool ARTSPlayerController::GetMouseHitLocation(FVector& OutHitLocation)
 	}
 
 	return false;
+}
+
+bool ARTSPlayerController::GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight)
+{
+	// Define a starting point above the terrain and an endpoint far below the terrain
+	FVector StartLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z + 1000.0f); // 1000 units above the terrain
+	FVector EndLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z - 10000.0f); // 10,000 units below the terrain
+
+	// Perform a line trace downwards to find the terrain
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(Building); // Ignore the preview actor
+
+	// Perform the line trace (use ECC_Visibility or ECC_WorldStatic for terrain/ground)
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECC_Visibility, QueryParams))
+	{
+		// If we hit something (like the terrain), retrieve the Z position of the hit
+		OutTerrainHeight = HitResult.Location.Z;
+
+		// Optionally draw debug lines to visualize the trace (for debugging)
+		// DrawDebugLine(GetWorld(), StartLocation, HitResult.Location, FColor::Green, false, 1.0f, 0, 5.0f);
+
+		return true; // We hit the terrain, so return true
+	}
+
+	return false; // We didn't hit any valid terrain
+}
+
+bool ARTSPlayerController::IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance)
+{
+	FVector Corner1 = BuildingLocation + FVector(BuildingExtents.X, BuildingExtents.Y, 0);
+	FVector Corner2 = BuildingLocation + FVector(BuildingExtents.X, -BuildingExtents.Y, 0);
+	FVector Corner3 = BuildingLocation + FVector(-BuildingExtents.X, BuildingExtents.Y, 0);
+	FVector Corner4 = BuildingLocation + FVector(-BuildingExtents.X, -BuildingExtents.Y, 0);
+
+	// Perform a line trace at each corner
+	float Height1, Height2, Height3, Height4;
+	if (GetTerrainHeightAtLocation(Corner1, Height1) &&
+		GetTerrainHeightAtLocation(Corner2, Height2) &&
+		GetTerrainHeightAtLocation(Corner3, Height3) &&
+		GetTerrainHeightAtLocation(Corner4, Height4))
+	{
+		// Check if the height difference between any corners is within the tolerance
+		float MinHeight = UMyUtility::Min4(Height1, Height2, Height3, Height4);
+		float MaxHeight = UMyUtility::Max4(Height1, Height2, Height3, Height4);
+
+		return FMath::Abs(MaxHeight - MinHeight) <= Tolerance;
+	}
+
+	return false; // If we couldn't get terrain height at some point
+}
+
+bool ARTSPlayerController::CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents)
+{
+	// Check if the terrain is flat enough
+	bool bIsTerrainFlat = IsTerrainFlat(BuildingLocation, BuildingExtents, 10.0f); // 10.0f tolerance for slope
+
+	// Check if there are no other buildings or units in the way
+	bool bIsLocationFree = IsLocationFreeOfObstacles(BuildingLocation, BuildingExtents);
+
+	// Return true only if both conditions are met
+	return bIsTerrainFlat && bIsLocationFree;
+}
+
+bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, FVector BuildingExtents)
+{
+	// Define the box extents for the building
+	FCollisionShape BoxCollision = FCollisionShape::MakeBox(BuildingExtents);
+
+	// Perform a box sweep to detect overlapping actors
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(Building); // Ignore the preview itself
+
+	bool bHit = GetWorld()->SweepSingleByChannel(
+		HitResult,
+		BuildingLocation,
+		BuildingLocation,
+		FQuat::Identity, // No rotation, adjust if needed
+		ECC_WorldStatic, // Channel to detect static objects (like other buildings)
+		BoxCollision,
+		QueryParams
+	);
+
+	return !bHit; // Return true if no hit (i.e., no obstacles detected)
 }
 
