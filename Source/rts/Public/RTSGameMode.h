@@ -4,12 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "RTSGameMode.generated.h"
 
 
 class AGameTimeManager;
-
-#include "RTSGameMode.generated.h"
-
 /**
  * 
  */
@@ -30,3 +28,5 @@ private:
 	AGameTimeManager* GameTimeManager;
 	
 };
+
+

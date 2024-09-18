@@ -24,4 +24,6 @@ public:
 	UFUNCTION()
 	void UpdatePlayerIconPosition(FVector2D MiniMapPosition);
 	
+	// Override the OnMouseButtonDown function
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 };

@@ -16,11 +16,13 @@ class RTS_API UBuilderUintWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	virtual void NativeConstruct() override;
 
 	UPROPERTY(meta = (BindWidget))
 	UButton* buildingIcon;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Building")
+	TSubclassOf<class ABuilding> BuildingClass; // Allows for Blueprint-specified building types
 
 	UFUNCTION()
 	void SeletedFristBuilding();

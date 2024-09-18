@@ -9,11 +9,12 @@ AGameTimeManager::AGameTimeManager()
 	PrimaryActorTick.bCanEverTick = true;
 
 	// Initialize time variables
-	TotalSecondsPassed = 0;
+	TotalTimePassedSeconds = 0;
+	SecondsPassed = 0;
 	MinutesPassed = 0;
 	HoursPassed = 0;
 
-	// Initialize time control variables
+	// Time management defaults
 	bIsPaused = false;
 	TimeSpeed = 1.0f; // Normal speed
 }
@@ -36,26 +37,48 @@ void AGameTimeManager::Tick(float DeltaTime)
 
 void AGameTimeManager::UpdateGameTime(float DeltaTime)
 {
-	// Accumulate time
-	TotalMiniSecondsPassed += FMath::RoundToInt(DeltaTime)+1;
+	// Increment total time in seconds
+	TotalTimePassedSeconds += DeltaTime;
 
-	// Calculate minutes and hours
-	TotalSecondsPassed = TotalMiniSecondsPassed / 60;
-	MinutesPassed = TotalSecondsPassed / 60;
-	HoursPassed = MinutesPassed / 60;
+	// Calculate total seconds, minutes, and hours
+	int32 TotalSeconds = static_cast<int32>(TotalTimePassedSeconds);
+	SecondsPassed = TotalSeconds % 60;
+	MinutesPassed = (TotalSeconds / 60) % 60;
+	int32 NewHoursPassed = TotalSeconds / 3600;
+
+	// Check if a new hour has passed
+	if (NewHoursPassed > HoursPassed)
+	{
+		HoursPassed = NewHoursPassed;
+	}
+
+	// Broadcast time updates
+	NotifyTimeUpdate();
 }
 
+
+void AGameTimeManager::NotifyTimeUpdate()
+{
+	OnTimeUpdated.Broadcast(HoursPassed, MinutesPassed, SecondsPassed);
+}
+
+// Pauses the game time
 void AGameTimeManager::PauseTime()
 {
 	bIsPaused = true;
+	UE_LOG(LogTemp, Log, TEXT("Game time paused."));
 }
 
+// Resumes the game time
 void AGameTimeManager::ResumeTime()
 {
 	bIsPaused = false;
+	UE_LOG(LogTemp, Log, TEXT("Game time resumed."));
 }
 
+// Adjusts the game time speed
 void AGameTimeManager::SetTimeSpeed(float NewTimeSpeed)
 {
-	TimeSpeed = NewTimeSpeed;
+	TimeSpeed = FMath::Clamp(NewTimeSpeed, 0.1f, 10.0f); // Limit time speed to reasonable range
+	UE_LOG(LogTemp, Log, TEXT("Game time speed set to: %f"), TimeSpeed);
 }

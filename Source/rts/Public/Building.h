@@ -6,6 +6,15 @@
 #include "GameFramework/Actor.h"
 #include "Building.generated.h"
 
+
+UENUM(BlueprintType)
+enum class EBuildingState : uint8
+{
+	Preview UMETA(DisplayName = "Preview"),
+	UnderConstruction UMETA(DisplayName = "Under Construction"),
+	Completed UMETA(DisplayName = "Completed")
+};
+
 UCLASS()
 class RTS_API ABuilding : public AActor
 {
@@ -16,7 +25,6 @@ public:
 	ABuilding();
 
 	virtual void Tick(float DeltaTime) override;
-
 	bool IsPreviewBuildingMesh() const;
 	bool IsBuildingMesh() const;
 	bool IsStartBuildingMesh() const;
@@ -25,8 +33,10 @@ public:
 	void SetBuildingMesh(bool Visible);
 	void SetStartBuildingMesh(bool Visible);
 
-	
+	// Function to change the building state and update mesh visibility accordingly
+	void SetBuildingState(EBuildingState NewState);
 
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -41,22 +51,27 @@ protected:
 	//show constraction proggres bar
 private:
 
-	UPROPERTY(EditDefaultsOnly, Category = "Location")
+	// Dynamic materials to show valid/invalid placement
+	UPROPERTY(EditDefaultsOnly, Category = "Building|Materials")
 	UMaterialInterface* ValidLocationMaterial;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Location")
+	UPROPERTY(EditDefaultsOnly, Category = "Building|Materials")
 	UMaterialInterface* InvalidLocationMaterial;
 
-	UPROPERTY(VisibleAnywhere, Category = "Building")
+	// Building meshes
+	UPROPERTY(VisibleAnywhere, Category = "Building|Mesh")
 	UStaticMeshComponent* BuildingMesh;
 
-	UPROPERTY(VisibleAnywhere, Category = "Building")
-	USceneComponent* RootSceneComponent;
-
-	UPROPERTY(VisibleAnywhere, Category = "Building")
+	UPROPERTY(VisibleAnywhere, Category = "Building|Mesh")
 	UStaticMeshComponent* PreviewBuildingMesh;
 
-	UPROPERTY(VisibleAnywhere, Category = "Building")
+	UPROPERTY(VisibleAnywhere, Category = "Building|Mesh")
 	UStaticMeshComponent* StartBuildingMesh;
+
+	// To store the building state (Preview, Under Construction, Completed)
+	EBuildingState CurrentState;
+
+	// Helper to update materials based on validity of placement
+	void UpdatePlacementMaterial(bool bIsValid);
 
 };

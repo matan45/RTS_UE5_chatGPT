@@ -43,27 +43,16 @@ void ABuilderUnit::DisplayUI(bool bShowUI)
 {
 	if (bShowUI)
 	{
-		if (BuildingWidget)
+		if (!BuildingWidget && BuildingSelectionWidgetClass)
 		{
+			BuildingWidget = CreateWidget<UBuilderUintWidget>(GetWorld(), BuildingSelectionWidgetClass);
 			BuildingWidget->AddToViewport();
-			UE_LOG(LogTemp, Log, TEXT("Widget added to viewport."));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("BuildingWidget is nullptr."));
 		}
 	}
-	else
+	else if (BuildingWidget)
 	{
-		if (BuildingWidget)
-		{
-			BuildingWidget->RemoveFromParent();
-			UE_LOG(LogTemp, Log, TEXT("Widget removed from viewport."));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("BuildingWidget is nullptr."));
-		}
+		BuildingWidget->RemoveFromParent();
+		BuildingWidget = nullptr; // Allow garbage collection
 	}
 }
 

@@ -15,6 +15,7 @@ void UBuilderUintWidget::NativeConstruct()
 		buildingIcon->OnClicked.AddDynamic(this, &UBuilderUintWidget::SeletedFristBuilding);
 	}
 
+	// Cache player controller reference
 	PlayerController = Cast<ARTSPlayerController>(GetOwningPlayer());
 }
 
@@ -22,25 +23,18 @@ void UBuilderUintWidget::NativeConstruct()
 
 void UBuilderUintWidget::SeletedFristBuilding()
 {
-
-
-	// Assuming you have a valid ABuildingPreview class to spawn
-	if (GetWorld())
+	if (BuildingClass && GetWorld())
 	{
 		FActorSpawnParameters SpawnParams;
-
-		// Replace ABuildingPreview with your actual class
-		Building = GetWorld()->SpawnActor<ABuilding>(ABuilding::StaticClass(), SpawnParams);
+		Building = GetWorld()->SpawnActor<ABuilding>(BuildingClass, SpawnParams);
 	}
-
 
 	if (Building && PlayerController)
 	{
+		// Set building to preview mode
+		Building->SetBuildingState(EBuildingState::Preview);
 
-		// Your building logic here...
-		Building->SetPreviewBuildingMesh(true);
-		Building->SetBuildingMesh(false);
-		Building->SetStartBuildingMesh(false);
+		// Notify PlayerController to start the building placement process
 		PlayerController->StartPreviewBuildingSelected(Building);
 	}
 	else
