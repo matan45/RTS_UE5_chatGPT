@@ -15,16 +15,9 @@ ARTSPlayerController::ARTSPlayerController()
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
 
-	// Create the Spring Arm Component for camera movement
-	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
-	SpringArmComponent->TargetArmLength = 1500.0f;
-	SpringArmComponent->bDoCollisionTest = false;
-	SpringArmComponent->bEnableCameraLag = true;
-	SpringArmComponent->CameraLagSpeed = 3.0f;
-
 	// Create the Camera Component
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
-	CameraComponent->SetupAttachment(SpringArmComponent);
+	CameraComponent->SetupAttachment(RootComponent);
 }
 
 // Called when the game starts
@@ -77,8 +70,27 @@ void ARTSPlayerController::SetupInputComponent()
 		{
 			EnhancedInputComponent->BindAction(IA_Cancel, ETriggerEvent::Triggered, this, &ARTSPlayerController::Cancel);
 		}
+		if (IA_Right_Click) {
+			EnhancedInputComponent->BindAction(IA_Right_Click, ETriggerEvent::Started, this, &ARTSPlayerController::StartCameraRotation);
+			EnhancedInputComponent->BindAction(IA_Right_Click, ETriggerEvent::Completed, this, &ARTSPlayerController::StopCameraRotation);
+		}
 	}
 
+}
+
+void ARTSPlayerController::StartCameraRotation(const FInputActionValue& Value)
+{
+	bIsRotatingCamera = true;
+	// Store the initial mouse position when the rotation starts
+	FVector2D MousePosition;
+	if (GetMousePosition(MousePosition.X, MousePosition.Y)) {
+		PreviousMousePosition = MousePosition;
+	}
+}
+
+void ARTSPlayerController::StopCameraRotation(const FInputActionValue& Value)
+{
+	bIsRotatingCamera = false;
 }
 
 // Called every frame
@@ -90,7 +102,7 @@ void ARTSPlayerController::Tick(float DeltaTime)
 
 	UpdatePawnLocation(DeltaTime);
 
-	UpdateSpringArmLocation(DeltaTime);
+	UpdatePlayerRotation();
 
 	if (SelectedBuilding && SelectedBuilding->IsPreviewBuildingMesh())
 	{
@@ -118,6 +130,7 @@ void ARTSPlayerController::ZoomCamera(const FInputActionValue& Value)
 
 void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
 {
+
 	FVector2D MousePosition;
 	FVector2D ViewportSize;
 
@@ -126,12 +139,11 @@ void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
 	{
 		GEngine->GameViewport->GetViewportSize(ViewportSize);
 
-		// Edge scrolling logic for the X axis (left-right movement)
-		if (MousePosition.X <= EdgeScrollThreshold) // Left edge
+		if (MousePosition.X <= EdgeScrollThreshold)
 		{
 			CameraMovementInput.X = -1;
 		}
-		else if (MousePosition.X >= ViewportSize.X - EdgeScrollThreshold) // Right edge
+		else if (MousePosition.X >= ViewportSize.X - EdgeScrollThreshold)
 		{
 			CameraMovementInput.X = 1;
 		}
@@ -140,12 +152,11 @@ void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
 			CameraMovementInput.X = 0;
 		}
 
-		// Edge scrolling logic for the Y axis (forward-backward movement)
-		if (MousePosition.Y <= EdgeScrollThreshold) // Top edge
+		if (MousePosition.Y <= EdgeScrollThreshold)
 		{
 			CameraMovementInput.Y = 1;
 		}
-		else if (MousePosition.Y >= ViewportSize.Y - EdgeScrollThreshold) // Bottom edge
+		else if (MousePosition.Y >= ViewportSize.Y - EdgeScrollThreshold)
 		{
 			CameraMovementInput.Y = -1;
 		}
@@ -156,92 +167,128 @@ void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
 	}
 }
 
-// Update camera movement and zoom
-void ARTSPlayerController::UpdateSpringArmLocation(float DeltaTime)
+
+void ARTSPlayerController::UpdatePlayerRotation()
 {
-	if (SpringArmComponent)
+	if (bIsRotatingCamera)
 	{
-		// Move the SpringArmComponent instead of the CameraComponent
-		FVector CurrentLocation = SpringArmComponent->GetComponentLocation();
-		FVector TargetLocation = CurrentLocation + FVector(CameraMovementInput.Y, CameraMovementInput.X, 0) * CameraSpeed * DeltaTime;
-		FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f); // Smooth movement
-		SpringArmComponent->SetWorldLocation(NewLocation);  // Move spring arm (camera will follow)
+		FVector2D CurrentMousePosition;
+		if (GetMousePosition(CurrentMousePosition.X, CurrentMousePosition.Y))
+		{
+			FVector2D MouseDelta = CurrentMousePosition - PreviousMousePosition;
 
-		// Smooth zooming
-		float NewArmLength = FMath::FInterpTo(SpringArmComponent->TargetArmLength, SpringArmComponent->TargetArmLength + CameraZoomInput * CameraZoomSpeed, DeltaTime, 5.0f);
-		SpringArmComponent->TargetArmLength = FMath::Clamp(NewArmLength, MinZoom, MaxZoom);
+			// Rotate the camera based on the mouse delta movement
+			if (APawn* ControlledPawn = GetPawn())
+			{
+				FRotator CurrentRotation = ControlledPawn->GetActorRotation();
+				CurrentRotation.Yaw += MouseDelta.X * CameraYawInput;  // Rotate horizontally based on mouse X
+				ControlledPawn->SetActorRotation(CurrentRotation);
+			}
 
-		// Reset inputs after processing
-		CameraMovementInput = FVector2D::ZeroVector;
-		CameraZoomInput = 0.0f;
+			// Store the new mouse position for the next frame
+			PreviousMousePosition = CurrentMousePosition;
+		}
 	}
 }
-
 
 void ARTSPlayerController::UpdatePawnLocation(float DeltaTime)
 {
 	if (APawn* ControlledPawn = GetPawn())  // Get the pawn controlled by the player
 	{
+		// Get the camera's current rotation
+		FRotator CameraRotation = ControlledPawn->GetActorRotation();
+
+		// Get the forward and right direction vectors based on camera rotation
+		FVector CameraForward = FRotationMatrix(CameraRotation).GetScaledAxis(EAxis::X); // Forward direction relative to the camera
+		FVector CameraRight = FRotationMatrix(CameraRotation).GetScaledAxis(EAxis::Y);   // Right direction relative to the camera
+
 		// Calculate the movement direction based on input
+		FVector MovementDirection = (CameraForward * CameraMovementInput.Y) + (CameraRight * CameraMovementInput.X);
+		MovementDirection = MovementDirection.GetSafeNormal(); // Normalize to avoid faster diagonal movement
+
+		// Get the current location of the pawn
 		FVector CurrentLocation = ControlledPawn->GetActorLocation();
-		FVector TargetLocation = CurrentLocation + FVector(CameraMovementInput.Y, CameraMovementInput.X, 0) * CameraSpeed * DeltaTime;
+
+		// Calculate the target location based on the movement direction and camera speed
+		FVector TargetLocation = CurrentLocation + (MovementDirection * CameraSpeed * DeltaTime);
+
+		// Smooth the movement with interpolation
+		FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f);  // Smooth movement
 
 		// Set the new location for the pawn
-		FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f);  // Smooth movement
-		ControlledPawn->SetActorLocation(NewLocation);  // Move the pawn directly
+		ControlledPawn->SetActorLocation(NewLocation);
 	}
+
+	// Reset the camera movement input after processing
+	CameraMovementInput = FVector2D::ZeroVector;
 }
 
 // Handle building selection
 void ARTSPlayerController::Select(const FInputActionValue& Value)
 {
-	FHitResult HitResult;
-	FCollisionQueryParams QueryParams;
-
-	// Ignore the player's pawn
-	QueryParams.AddIgnoredActor(GetPawn());
-
-	// Get the mouse position in screen space
-	FVector2D MousePosition;
-	if (GetMousePosition(MousePosition.X, MousePosition.Y))
+	if (SelectedBuilding && SelectedBuilding->IsPreviewBuildingMesh())
 	{
-		FVector WorldLocation, WorldDirection;
+		if (CanPlaceBuildingAtLocation(SelectedBuilding->GetActorLocation(), SelectedBuilding->GetBuildingExtents())) {
+			//todo start building
+		}
+	}
+	else {
 
-		// Convert the 2D screen position to a 3D world direction
-		DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection);
+		FHitResult HitResult;
+		FCollisionQueryParams QueryParams;
 
-		// Define the trace start and end points
-		FVector Start = WorldLocation;
-		FVector End = Start + (WorldDirection * 10000.0f); // A long trace distance
+		// Ignore the player's pawn
+		QueryParams.AddIgnoredActor(GetPawn());
 
-		// Perform the trace
-		if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_GameTraceChannel1, QueryParams))
+		// Get the mouse position in screen space
+		FVector2D MousePosition;
+		if (GetMousePosition(MousePosition.X, MousePosition.Y))
 		{
-			AActor* HitActor = HitResult.GetActor();
-			UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
+			FVector WorldLocation, WorldDirection;
 
-			// Check if the hit actor is a BuilderUnit
-			if (ABuilderUnit* Unit = Cast<ABuilderUnit>(HitActor))
+			// Convert the 2D screen position to a 3D world direction
+			DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection);
+
+			// Define the trace start and end points
+			FVector Start = WorldLocation;
+			FVector End = Start + (WorldDirection * 10000.0f); // A long trace distance
+
+			// Perform the trace
+			if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_GameTraceChannel1, QueryParams))
 			{
-				SelectedBuilderUnit = Unit;
+				//deselect
+				if (SelectedBuilderUnit) {
+					SelectedBuilderUnit->DisplayUI(false);
+					SelectedBuilderUnit = nullptr;
+				}
 
-				if (SelectedBuilderUnit)
+				AActor* HitActor = HitResult.GetActor();
+				UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
+
+				// Check if the hit actor is a BuilderUnit
+				if (ABuilderUnit* Unit = Cast<ABuilderUnit>(HitActor))
 				{
-					SelectedBuilderUnit->DisplayUI(true);
+
+					SelectedBuilderUnit = Unit;
+
+					if (SelectedBuilderUnit)
+					{
+						SelectedBuilderUnit->DisplayUI(true);
+					}
+					else
+					{
+						UE_LOG(LogTemp, Warning, TEXT("BuilderUnit is nullptr after casting."));
+					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("BuilderUnit is nullptr after casting."));
+					UE_LOG(LogTemp, Warning, TEXT("Hit actor is not a BuilderUnit."));
 				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Hit actor is not a BuilderUnit."));
+				UE_LOG(LogTemp, Warning, TEXT("No hit detected."));
 			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("No hit detected."));
 		}
 	}
 }
@@ -254,10 +301,6 @@ void ARTSPlayerController::Cancel(const FInputActionValue& Value)
 		SelectedBuilding->Destroy();
 		SelectedBuilding = nullptr;
 	}
-	if (SelectedBuilderUnit) {
-		SelectedBuilderUnit->Destroy();
-		SelectedBuilderUnit = nullptr;
-	}
 }
 
 // Start the preview building selection process
@@ -266,7 +309,7 @@ void ARTSPlayerController::StartPreviewBuildingSelected(ABuilding* UIBuilding)
 	if (UIBuilding)
 	{
 		SelectedBuilding = UIBuilding;
-		SelectedBuilding->SetPreviewBuildingMesh(true);
+		SelectedBuilding->SetBuildingState(EBuildingState::Preview);
 	}
 }
 
@@ -275,10 +318,11 @@ void ARTSPlayerController::UpdateBuildingPreview()
 {
 	if (SelectedBuilding)
 	{
-		SelectedBuilding->SetActorEnableCollision(false); // Disable collision for the preview
+
 		FVector HitLocation;
 		if (GetMouseHitLocation(HitLocation))
 		{
+			SelectedBuilding->SetActorEnableCollision(false);
 			float TerrainHeight;
 			if (GetTerrainHeightAtLocation(HitLocation, TerrainHeight)) {
 				// Move the preview to the mouse hit location
@@ -287,8 +331,18 @@ void ARTSPlayerController::UpdateBuildingPreview()
 				// Smoothly move the preview towards the target location
 				FVector CurrentLocation = SelectedBuilding->GetActorLocation();
 				FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, GetWorld()->GetDeltaSeconds(), 10.0f); // Adjust interpolation speed
-
 				SelectedBuilding->SetActorLocation(NewLocation);
+
+				SelectedBuilding->SetActorEnableCollision(true);
+				if (CanPlaceBuildingAtLocation(NewLocation, SelectedBuilding->GetBuildingExtents())) {
+					SelectedBuilding->UpdatePlacementMaterial(true);
+					UE_LOG(LogTemp, Warning, TEXT("can place."));
+				}
+				else
+				{
+					SelectedBuilding->UpdatePlacementMaterial(false);
+					UE_LOG(LogTemp, Warning, TEXT("no place."));
+				}
 			}
 		}
 	}
@@ -379,16 +433,22 @@ bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, F
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(SelectedBuilding); // Ignore the preview itself
+	QueryParams.AddIgnoredActor(GetPawn()); // Ignore the preview itself
+
 
 	bool bHit = GetWorld()->SweepSingleByChannel(
 		HitResult,
 		BuildingLocation,
 		BuildingLocation,
 		FQuat::Identity, // No rotation, adjust if needed
-		ECC_WorldStatic, // Channel to detect static objects (like other buildings)
+		ECC_GameTraceChannel1, // Channel to detect static objects (like other buildings)
 		BoxCollision,
 		QueryParams
 	);
+	if (HitResult.GetActor()) {
+		AActor* HitActor = HitResult.GetActor();
+		UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
+	}
 
 	return !bHit; // Return true if no hit (i.e., no obstacles detected)
 }

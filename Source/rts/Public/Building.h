@@ -28,14 +28,14 @@ public:
 	bool IsPreviewBuildingMesh() const;
 	bool IsBuildingMesh() const;
 	bool IsStartBuildingMesh() const;
-
-	void SetPreviewBuildingMesh(bool Visible);
-	void SetBuildingMesh(bool Visible);
-	void SetStartBuildingMesh(bool Visible);
+	FVector GetBuildingExtents() {
+		return PreviewBuildingMesh->GetStaticMesh()->GetBounds().BoxExtent;
+	}
 
 	// Function to change the building state and update mesh visibility accordingly
 	void SetBuildingState(EBuildingState NewState);
-
+	// Helper to update materials based on validity of placement
+	void UpdatePlacementMaterial(bool bIsValid);
 	
 protected:
 	// Called when the game starts or when spawned
@@ -71,7 +71,8 @@ private:
 	// To store the building state (Preview, Under Construction, Completed)
 	EBuildingState CurrentState;
 
-	// Helper to update materials based on validity of placement
-	void UpdatePlacementMaterial(bool bIsValid);
+	void SetPreviewBuildingMesh(bool Visible);
+	void SetBuildingMesh(bool Visible);
+	void SetStartBuildingMesh(bool Visible);
 
 };

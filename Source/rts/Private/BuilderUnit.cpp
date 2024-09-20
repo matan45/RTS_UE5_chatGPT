@@ -43,7 +43,7 @@ void ABuilderUnit::DisplayUI(bool bShowUI)
 {
 	if (bShowUI)
 	{
-		if (BuildingWidget && BuildingSelectionWidgetClass)
+		if (BuildingWidget)
 		{
 			BuildingWidget->AddToViewport();
 		}
@@ -51,7 +51,6 @@ void ABuilderUnit::DisplayUI(bool bShowUI)
 	else if (BuildingWidget)
 	{
 		BuildingWidget->RemoveFromParent();
-		BuildingWidget = nullptr; // Allow garbage collection
 	}
 }
 

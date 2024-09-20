@@ -28,9 +28,12 @@ protected:
 	void MoveCameraForward(const FInputActionValue& Value);
 	void MoveCameraRight(const FInputActionValue& Value);
 	void ZoomCamera(const FInputActionValue& Value);
+	void StartCameraRotation(const FInputActionValue& Value);
+	void StopCameraRotation(const FInputActionValue& Value);
 
 	// Edge scrolling based on mouse position
 	void HandleEdgeScrolling(float DeltaTime);
+	void UpdatePlayerRotation();
 
 	// Select and cancel actions
 	void Select(const FInputActionValue& Value);
@@ -39,16 +42,12 @@ protected:
 private:
 	// Camera movement state
 	FVector2D CameraMovementInput;
-	FVector2D PanStartPosition;
+	bool bIsRotatingCamera;
+	FVector2D PreviousMousePosition;
+
 	float CameraZoomInput;
-	float CameraYawInput;
-	float CameraPitchInput;
-
-	bool bIsPanning;
-
-	// Spring arm and camera components
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* SpringArmComponent;
+	UPROPERTY(EditAnywhere, Category = "Camera")
+	float CameraYawInput = 0.1f; // Adjust this for faster/slower rotation
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* CameraComponent;
@@ -71,6 +70,8 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_Cancel;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* IA_Right_Click;
 
 	// Camera movement properties
 	UPROPERTY(EditAnywhere)
@@ -80,18 +81,9 @@ private:
 	float CameraZoomSpeed = 500.0f;
 
 	UPROPERTY(EditAnywhere)
-	float MinZoom = 300.0f;
-
-	UPROPERTY(EditAnywhere)
-	float MaxZoom = 3000.0f;
-
-	UPROPERTY(EditAnywhere)
 	float EdgeScrollThreshold = 50.0f;
 
-
-	// Update the spring arm location for smooth camera movement
-	UFUNCTION()
-	void UpdateSpringArmLocation(float DeltaTime);
+	//void UpdateCameraComponentLocation(float DeltaTime);
 	void UpdatePawnLocation(float DeltaTime);
 
 	// Manage building previews and placement
