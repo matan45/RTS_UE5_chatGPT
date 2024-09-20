@@ -101,7 +101,6 @@ void ARTSHUD::UpdateTimeDisplay(int32 Hours, int32 Minutes, int32 Seconds)
 			Params.InSecondsPassed = Seconds;
 
 			GameTimeWidget->ProcessEvent(UpdateTimeFunc, &Params);
-			UE_LOG(LogTemp, Log, TEXT("Updated time display in GameTimeWidget to %02d:%02d:%02d"), Hours, Minutes, Seconds);
 		}
 		else
 		{

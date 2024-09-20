@@ -1,73 +1,78 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "MiniMapWidget.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
 
-#include <Kismet/GameplayStatics.h>
+// Convert the player's world position to minimap coordinates
+FVector2D UMiniMapWidget::WorldToMiniMapPosition(FVector WorldPosition) const
+{
+	// Normalize the world position relative to the world bounds
+	FVector2D NormalizedPosition;
+	NormalizedPosition.X = (WorldPosition.X + (WorldBounds.X * 0.5f)) / WorldBounds.X;
+	NormalizedPosition.Y = (WorldPosition.Y + (WorldBounds.Y * 0.5f)) / WorldBounds.Y;
 
+	// Scale the normalized position to the minimap size
+	FVector2D MiniMapPosition = NormalizedPosition * MiniMapSize;
+
+	return MiniMapPosition;
+}
+
+// Convert a minimap position (from a mouse click) to a world position
+FVector2D UMiniMapWidget::MiniMapToWorldPosition(FVector2D LocalPosition) const
+{
+	// Normalize the local position within the minimap's size
+	FVector2D NormalizedPosition = LocalPosition / MiniMapSize;
+
+	// Scale to the world bounds
+	FVector2D WorldPosition;
+	WorldPosition.X = NormalizedPosition.X * WorldBounds.X;
+	WorldPosition.Y = NormalizedPosition.Y * WorldBounds.Y;
+
+	return WorldPosition;
+}
+
+// Update the PlayerIcon's position on the minimap
 void UMiniMapWidget::UpdatePlayerIconPosition(FVector2D MiniMapPosition)
 {
 	if (PlayerIcon)
 	{
-		// Set the PlayerIcon position in the mini-map
+		// Set the PlayerIcon's position within the minimap using render translation
 		PlayerIcon->SetRenderTranslation(MiniMapPosition);
 	}
-	else {
-		UE_LOG(LogTemp, Error, TEXT("Failed to link PlayerIcon"));
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("PlayerIcon is null in UpdatePlayerIconPosition"));
 	}
 }
 
+// Handle mouse clicks on the minimap
 FReply UMiniMapWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	// Get the local mouse position relative to the widget
+	// Convert the mouse click position on the minimap to local space
 	FVector2D LocalMousePosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
 
-	// Define the world size that the mini-map represents
-	FVector2D WorldSize = FVector2D(10000.0f, 10000.0f); // Adjust this based on your world
+	// Convert the minimap position to the corresponding world position
+	FVector2D WorldPosition2D = MiniMapToWorldPosition(LocalMousePosition);
+	FVector WorldPosition = FVector(WorldPosition2D.X, WorldPosition2D.Y, 0.0f);
 
-	// Get the size of the mini-map widget (e.g., 512x512 pixels)
-	FVector2D MiniMapSize = InGeometry.GetLocalSize();
-
-	// Normalize the local mouse position within the mini-map (0.0 to 1.0)
-	FVector2D NormalizedPosition = LocalMousePosition / MiniMapSize;
-
-	// Convert the normalized 2D position to a 3D world position
-	FVector WorldPosition;
-	WorldPosition.X = NormalizedPosition.X * WorldSize.X;
-	WorldPosition.Y = NormalizedPosition.Y * WorldSize.Y;
-	WorldPosition.Z = 0.0f;  // Set Z based on your game (e.g., terrain height, or keep it 0 for flat ground)
-
-	// Perform a line trace to find the Z-height of the terrain
+	// Optionally perform a ray trace to determine the Z-height of the terrain
 	FHitResult HitResult;
 	FVector Start = FVector(WorldPosition.X, WorldPosition.Y, 10000.0f);  // Start high above the world
-	FVector End = FVector(WorldPosition.X, WorldPosition.Y, -10000.0f);   // Trace downwards
+	FVector End = FVector(WorldPosition.X, WorldPosition.Y, -10000.0f);   // Trace downward
 
 	if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility))
 	{
-		// Set the Z to the hit location (e.g., ground)
-		WorldPosition.Z = HitResult.Location.Z + 1000;
+		// Set the Z-height to the terrain height
+		WorldPosition.Z = HitResult.Location.Z;
 	}
 
-	// Move the player's pawn or camera to the target location
+	// Move the player's camera to the clicked world position
 	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0))
 	{
-		APawn* PlayerPawn = PlayerController->GetPawn();
-		if (PlayerPawn)
+		if (PlayerController->GetPawn())
 		{
-			// Smoothly move the player's pawn to the target position over time
-			FVector CurrentLocation = PlayerPawn->GetActorLocation();
-			FVector TargetLocation = WorldPosition;
-
-			// Speed of the camera movement
-			float MoveSpeed = 50.0f;  // Adjust speed as necessary
-
-			// Interpolating between the current location and the target location
-			FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, GetWorld()->GetDeltaSeconds(), MoveSpeed);
-
-			// Update pawn's location
-			PlayerPawn->SetActorLocation(NewLocation);
+			PlayerController->GetPawn()->SetActorLocation(WorldPosition);
 		}
 	}
-	return FReply::Handled();  // This indicates that the click event was handled.
 
+	return FReply::Handled();  // Indicate that the click event was handled
 }
