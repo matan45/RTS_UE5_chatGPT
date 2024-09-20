@@ -26,7 +26,7 @@ protected:
 private:
 	//TODO 
 	//add building widget for select witch building to build
-	UPROPERTY(EditAnywhere, Category = "BuilderUnit|UI")
+	UPROPERTY(EditAnywhere, Category = "Building|UI")
 	TSubclassOf<class UBuilderUintWidget> BuildingSelectionWidgetClass;
 	//add animation for moving and building
 	//add hp bar

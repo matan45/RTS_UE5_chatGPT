@@ -5,7 +5,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "InputAction.h"
-#include "InputMappingContext.h" // Update the path as needed
+#include "InputMappingContext.h"
 #include "RTSPlayerController.generated.h"
 
 UCLASS()
@@ -16,49 +16,44 @@ class RTS_API ARTSPlayerController : public APlayerController
 public:
 	ARTSPlayerController();
 
+	// Handle starting the building preview
 	void StartPreviewBuildingSelected(class ABuilding* UIBuilding);
-
-	//TODO when selecting building to construct show preview mesh
-	// add building validation location on the terrain 
-	//add UInputAction for select units and move them to location
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void Tick(float DeltaTime) override;
 
+	// Camera movement and zoom
 	void MoveCameraForward(const FInputActionValue& Value);
 	void MoveCameraRight(const FInputActionValue& Value);
 	void ZoomCamera(const FInputActionValue& Value);
 
+	// Edge scrolling based on mouse position
+	void HandleEdgeScrolling(float DeltaTime);
+
+	// Select and cancel actions
 	void Select(const FInputActionValue& Value);
 	void Cancel(const FInputActionValue& Value);
 
 private:
-	class ABuilding* Building;
-	class ABuilderUnit* BuilderUnit;
-
+	// Camera movement state
 	FVector2D CameraMovementInput;
-	FVector2D CameraMovementDirection;
+	FVector2D PanStartPosition;
 	float CameraZoomInput;
+	float CameraYawInput;
+	float CameraPitchInput;
 
-	class ARTSHUD* RTShud;
+	bool bIsPanning;
 
-	UPROPERTY(EditAnywhere)
-	float CameraSpeed = 2000.0f;
-	UPROPERTY(EditAnywhere)
-	float CameraZoomSpeed = 500.0f;
-	UPROPERTY(EditAnywhere)
-	float MinZoom = 300.0f;
-	UPROPERTY(EditAnywhere)
-	float MaxZoom = 3000.0f;
-
+	// Spring arm and camera components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* SpringArmComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* CameraComponent;
 
+	// Input mapping and actions
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* InputMapping;
 
@@ -73,22 +68,47 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_Select;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_Cancel;
 
-	UFUNCTION()
-	void UpdateSpringArmComponentLoction(float dt);
-	UFUNCTION()
-	void UpdateMiniMapPlayerIcon();
-	UFUNCTION()
-	FVector2D ConvertWorldToMiniMapCoordinates(FVector WorldLocation);
+	// Camera movement properties
+	UPROPERTY(EditAnywhere)
+	float CameraSpeed = 2000.0f;
 
+	UPROPERTY(EditAnywhere)
+	float CameraZoomSpeed = 500.0f;
+
+	UPROPERTY(EditAnywhere)
+	float MinZoom = 300.0f;
+
+	UPROPERTY(EditAnywhere)
+	float MaxZoom = 3000.0f;
+
+	UPROPERTY(EditAnywhere)
+	float EdgeScrollThreshold = 50.0f;
+
+
+	// Update the spring arm location for smooth camera movement
+	UFUNCTION()
+	void UpdateSpringArmLocation(float DeltaTime);
+	void UpdatePawnLocation(float DeltaTime);
+
+	// Manage building previews and placement
 	void UpdateBuildingPreview();
-
 	bool GetMouseHitLocation(FVector& OutHitLocation);
-	bool GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight);
+	bool CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents);
 	bool IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance);
 	bool IsLocationFreeOfObstacles(FVector BuildingLocation, FVector BuildingExtents);
-	bool CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents);
+	bool GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight);
+
+	// Input helpers for building selection and terrain validation
 	bool PerformRaycast(FHitResult& OutHitResult, const FVector& StartLocation, const FVector& EndLocation, ECollisionChannel CollisionChannel);
+
+	// Update minimap with player position
+	void UpdateMinimap();
+
+	class ABuilding* SelectedBuilding;
+	class ABuilderUnit* SelectedBuilderUnit;
+	class ARTSHUD* RTShud;
 };

@@ -32,13 +32,13 @@ public:
 	FVector2D WorldBounds;
 	
 
-protected:
-
 	// Convert a world position to minimap coordinates
 	FVector2D WorldToMiniMapPosition(FVector WorldPosition) const;
 
 	// Convert a local minimap position (from a mouse click) to world coordinates
 	FVector2D MiniMapToWorldPosition(FVector2D LocalPosition) const;
+
+protected:
 
 	// Override the OnMouseButtonDown function to handle clicking on the minimap
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;

@@ -43,9 +43,8 @@ void ABuilderUnit::DisplayUI(bool bShowUI)
 {
 	if (bShowUI)
 	{
-		if (!BuildingWidget && BuildingSelectionWidgetClass)
+		if (BuildingWidget && BuildingSelectionWidgetClass)
 		{
-			BuildingWidget = CreateWidget<UBuilderUintWidget>(GetWorld(), BuildingSelectionWidgetClass);
 			BuildingWidget->AddToViewport();
 		}
 	}

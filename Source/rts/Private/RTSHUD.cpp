@@ -81,13 +81,10 @@ void ARTSHUD::UpdateTimeDisplay(int32 Hours, int32 Minutes, int32 Seconds)
 	// Assuming your widget has a method to update the time display, use it here
 	if (GameTimeWidget)
 	{
-		UE_LOG(LogTemp, Log, TEXT("GameTimeWidget found"));
-
 		UFunction* UpdateTimeFunc = GameTimeWidget->FindFunction(FName("UpdateTimeDisplay"));
 
 		if (UpdateTimeFunc)
 		{
-			UE_LOG(LogTemp, Log, TEXT("UpdateTimeFunc found"));
 			struct FTimeUpdateParams
 			{
 				int32 InHoursPassed;

@@ -1,27 +1,21 @@
 #include "RTSPlayerController.h"
-
-#include <Kismet/GameplayStatics.h>
-
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "RTSGameMode.h"
-#include "RTSHUD.h"
+#include "Kismet/GameplayStatics.h"
 #include "Building.h"
-#include "MiniMapWidget.h"
-#include "GameTimeManager.h"
-#include "MyUtility.h"
 #include "BuilderUnit.h"
-#include "EnhancedInputComponent.h"
-#include "Components/BoxComponent.h"
+#include "MyUtility.h"
+#include "RTSHUD.h"
+#include "MiniMapWidget.h"
 
-
+// Constructor
 ARTSPlayerController::ARTSPlayerController()
 {
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
 
-	// Create the Spring Arm Component
+	// Create the Spring Arm Component for camera movement
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
 	SpringArmComponent->TargetArmLength = 1500.0f;
 	SpringArmComponent->bDoCollisionTest = false;
@@ -31,10 +25,9 @@ ARTSPlayerController::ARTSPlayerController()
 	// Create the Camera Component
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
-
 }
 
-
+// Called when the game starts
 void ARTSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
@@ -44,8 +37,10 @@ void ARTSPlayerController::BeginPlay()
 	if (!RTShud) {
 		UE_LOG(LogTemp, Warning, TEXT("failed to find RTShud object"));
 	}
+
 }
 
+// Setup input actions
 void ARTSPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -86,21 +81,26 @@ void ARTSPlayerController::SetupInputComponent()
 
 }
 
+// Called every frame
 void ARTSPlayerController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UpdateSpringArmComponentLoction(DeltaTime);
-	UpdateMiniMapPlayerIcon();
+	HandleEdgeScrolling(DeltaTime);
 
-	if (Building) {
-		if (Building->IsPreviewBuildingMesh()) {
-			UpdateBuildingPreview();
-		}
+	UpdatePawnLocation(DeltaTime);
+
+	UpdateSpringArmLocation(DeltaTime);
+
+	if (SelectedBuilding && SelectedBuilding->IsPreviewBuildingMesh())
+	{
+		UpdateBuildingPreview();
 	}
 
+	UpdateMinimap();
 }
 
+// Camera movement
 void ARTSPlayerController::MoveCameraForward(const FInputActionValue& Value)
 {
 	CameraMovementInput.Y = Value.Get<float>();
@@ -116,10 +116,85 @@ void ARTSPlayerController::ZoomCamera(const FInputActionValue& Value)
 	CameraZoomInput = Value.Get<float>();
 }
 
+void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
+{
+	FVector2D MousePosition;
+	FVector2D ViewportSize;
 
+	// Get the mouse position and viewport size
+	if (GetMousePosition(MousePosition.X, MousePosition.Y))
+	{
+		GEngine->GameViewport->GetViewportSize(ViewportSize);
+
+		// Edge scrolling logic for the X axis (left-right movement)
+		if (MousePosition.X <= EdgeScrollThreshold) // Left edge
+		{
+			CameraMovementInput.X = -1;
+		}
+		else if (MousePosition.X >= ViewportSize.X - EdgeScrollThreshold) // Right edge
+		{
+			CameraMovementInput.X = 1;
+		}
+		else
+		{
+			CameraMovementInput.X = 0;
+		}
+
+		// Edge scrolling logic for the Y axis (forward-backward movement)
+		if (MousePosition.Y <= EdgeScrollThreshold) // Top edge
+		{
+			CameraMovementInput.Y = 1;
+		}
+		else if (MousePosition.Y >= ViewportSize.Y - EdgeScrollThreshold) // Bottom edge
+		{
+			CameraMovementInput.Y = -1;
+		}
+		else
+		{
+			CameraMovementInput.Y = 0;
+		}
+	}
+}
+
+// Update camera movement and zoom
+void ARTSPlayerController::UpdateSpringArmLocation(float DeltaTime)
+{
+	if (SpringArmComponent)
+	{
+		// Move the SpringArmComponent instead of the CameraComponent
+		FVector CurrentLocation = SpringArmComponent->GetComponentLocation();
+		FVector TargetLocation = CurrentLocation + FVector(CameraMovementInput.Y, CameraMovementInput.X, 0) * CameraSpeed * DeltaTime;
+		FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f); // Smooth movement
+		SpringArmComponent->SetWorldLocation(NewLocation);  // Move spring arm (camera will follow)
+
+		// Smooth zooming
+		float NewArmLength = FMath::FInterpTo(SpringArmComponent->TargetArmLength, SpringArmComponent->TargetArmLength + CameraZoomInput * CameraZoomSpeed, DeltaTime, 5.0f);
+		SpringArmComponent->TargetArmLength = FMath::Clamp(NewArmLength, MinZoom, MaxZoom);
+
+		// Reset inputs after processing
+		CameraMovementInput = FVector2D::ZeroVector;
+		CameraZoomInput = 0.0f;
+	}
+}
+
+
+void ARTSPlayerController::UpdatePawnLocation(float DeltaTime)
+{
+	if (APawn* ControlledPawn = GetPawn())  // Get the pawn controlled by the player
+	{
+		// Calculate the movement direction based on input
+		FVector CurrentLocation = ControlledPawn->GetActorLocation();
+		FVector TargetLocation = CurrentLocation + FVector(CameraMovementInput.Y, CameraMovementInput.X, 0) * CameraSpeed * DeltaTime;
+
+		// Set the new location for the pawn
+		FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f);  // Smooth movement
+		ControlledPawn->SetActorLocation(NewLocation);  // Move the pawn directly
+	}
+}
+
+// Handle building selection
 void ARTSPlayerController::Select(const FInputActionValue& Value)
 {
-	
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
 
@@ -148,12 +223,11 @@ void ARTSPlayerController::Select(const FInputActionValue& Value)
 			// Check if the hit actor is a BuilderUnit
 			if (ABuilderUnit* Unit = Cast<ABuilderUnit>(HitActor))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Selected BuilderUnit: %s"), *Unit->GetName());
-				BuilderUnit = Unit;
+				SelectedBuilderUnit = Unit;
 
-				if (BuilderUnit)
+				if (SelectedBuilderUnit)
 				{
-					BuilderUnit->DisplayUI(true);
+					SelectedBuilderUnit->DisplayUI(true);
 				}
 				else
 				{
@@ -172,88 +246,36 @@ void ARTSPlayerController::Select(const FInputActionValue& Value)
 	}
 }
 
-
+// Cancel building or selection
 void ARTSPlayerController::Cancel(const FInputActionValue& Value)
 {
-	if (Building) {
-		Building->Destroy();
-		Building = nullptr;
-		UE_LOG(LogTemp, Warning, TEXT("Cancel action Building"));
+	if (SelectedBuilding)
+	{
+		SelectedBuilding->Destroy();
+		SelectedBuilding = nullptr;
 	}
-	if (BuilderUnit) {
-		BuilderUnit->DisplayUI(false);
-		BuilderUnit = nullptr;
-		UE_LOG(LogTemp, Warning, TEXT("Cancel action BuilderUnit"));
+	if (SelectedBuilderUnit) {
+		SelectedBuilderUnit->Destroy();
+		SelectedBuilderUnit = nullptr;
 	}
 }
 
+// Start the preview building selection process
 void ARTSPlayerController::StartPreviewBuildingSelected(ABuilding* UIBuilding)
 {
-	if (UIBuilding) {
-		Building = UIBuilding;
-	}
-}
-
-
-void ARTSPlayerController::UpdateSpringArmComponentLoction(float dt)
-{
-	if (SpringArmComponent)
+	if (UIBuilding)
 	{
-		// Apply the combined movement input and direction
-		FVector NewLocation = SpringArmComponent->GetComponentLocation();
-		NewLocation += FVector(CameraMovementInput.Y + CameraMovementDirection.Y, CameraMovementInput.X + CameraMovementDirection.X, 0) * CameraSpeed * dt;
-		SpringArmComponent->SetWorldLocation(NewLocation);
-
-		// Handle camera zoom
-		float NewArmLength = SpringArmComponent->TargetArmLength + CameraZoomInput * CameraZoomSpeed * dt;
-		SpringArmComponent->TargetArmLength = FMath::Clamp(NewArmLength, MinZoom, MaxZoom);
-
-		// Reset inputs after processing
-		CameraMovementInput = FVector2D::ZeroVector;
-		CameraZoomInput = 0.0f;
+		SelectedBuilding = UIBuilding;
+		SelectedBuilding->SetPreviewBuildingMesh(true);
 	}
 }
 
-void ARTSPlayerController::UpdateMiniMapPlayerIcon()
-{
-	if (RTShud)
-	{
-		if (UMiniMapWidget* MiniMapWidget = RTShud->GetMiniMapWidget()) {
-
-			// Get the player's world position
-			FVector PlayerWorldLocation = GetPawn()->GetActorLocation();
-			//TODO refactor mini map class for map to add and remove and update images dynamic
-			// move ConvertWorldToMiniMapCoordinates to mini map class
-			// Convert the world position to mini-map coordinates (implement your own logic)
-			FVector2D MiniMapPosition = ConvertWorldToMiniMapCoordinates(PlayerWorldLocation);
-
-			// Call the UpdatePlayerIconPosition function in the widget to update the player icon's position
-			MiniMapWidget->UpdatePlayerIconPosition(MiniMapPosition);
-		}
-
-	}
-}
-
-//todo move it to the mini map class
-FVector2D ARTSPlayerController::ConvertWorldToMiniMapCoordinates(FVector WorldLocation)
-{
-	// Define the bounds of the world that the mini-map covers
-	FVector2D MiniMapSize = FVector2D(512.0f, 512.0f);  // Example size of the mini-map widget
-	FVector2D WorldMin = FVector2D(-30000.0f, -30000.0f);  // Min world bounds covered by the mini-map
-	FVector2D WorldMax = FVector2D(30000.0f, 30000.0f);    // Max world bounds covered by the mini-map
-
-	// Map the world coordinates to mini-map coordinates
-	float X = (WorldLocation.X - WorldMin.X) / (WorldMax.X - WorldMin.X) * MiniMapSize.X;
-	float Y = (WorldLocation.Y - WorldMin.Y) / (WorldMax.Y - WorldMin.Y) * MiniMapSize.Y;
-
-	return FVector2D(X, Y);
-}
-
+// Update the building preview location during placement
 void ARTSPlayerController::UpdateBuildingPreview()
 {
-	if (Building)
+	if (SelectedBuilding)
 	{
-		Building->SetActorEnableCollision(false); // Disable collision for the preview
+		SelectedBuilding->SetActorEnableCollision(false); // Disable collision for the preview
 		FVector HitLocation;
 		if (GetMouseHitLocation(HitLocation))
 		{
@@ -263,46 +285,27 @@ void ARTSPlayerController::UpdateBuildingPreview()
 				FVector TargetLocation = FVector(HitLocation.X, HitLocation.Y, TerrainHeight);
 
 				// Smoothly move the preview towards the target location
-				FVector CurrentLocation = Building->GetActorLocation();
+				FVector CurrentLocation = SelectedBuilding->GetActorLocation();
 				FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, GetWorld()->GetDeltaSeconds(), 10.0f); // Adjust interpolation speed
 
-				Building->SetActorLocation(NewLocation);
-
-				// Apply rotation if you've implemented rotation functionality (current yaw rotation)
-				//FRotator NewRotation = FRotator(0.0f, CurrentYawRotation, 0.0f); // Assuming you store yaw
-				//Building->SetActorRotation(NewRotation);
-
-				 // Check if the placement is valid
-/*
-// 				if (CanPlaceBuildingAtLocation(NewLocation, BuildingExtents))
-// 				{
-// 					Building->SetValidPlacement(true); // Example: Set material to green
-// 				}
-// 				else
-// 				{
-// 					Building->SetValidPlacement(false); // Example: Set material to red
-// 				}
-*/
+				SelectedBuilding->SetActorLocation(NewLocation);
 			}
 		}
 	}
 }
 
+// Get mouse hit location on terrain for building placement
 bool ARTSPlayerController::GetMouseHitLocation(FVector& OutHitLocation)
 {
 	FHitResult HitResult;
 	FVector WorldLocation, WorldDirection;
 
-	// Get the current mouse cursor position and convert to world space
-	FVector2D MousePosition;
-	if (GetMousePosition(MousePosition.X, MousePosition.Y))
+	if (DeprojectMousePositionToWorld(WorldLocation, WorldDirection))
 	{
-		DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection);
-
 		FVector Start = WorldLocation;
-		FVector End = Start + (WorldDirection * 10000.0f); // Trace for a long distance
+		FVector End = Start + (WorldDirection * 10000.0f);
 
-		if (PerformRaycast(HitResult, Start, End, ECC_Visibility)) // Using the unified raycast
+		if (PerformRaycast(HitResult, Start, End, ECC_Visibility))
 		{
 			OutHitLocation = HitResult.Location;
 			return true;
@@ -312,19 +315,35 @@ bool ARTSPlayerController::GetMouseHitLocation(FVector& OutHitLocation)
 	return false;
 }
 
-bool ARTSPlayerController::GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight)
+// Perform a raycast for terrain and obstacle detection
+bool ARTSPlayerController::PerformRaycast(FHitResult& OutHitResult, const FVector& StartLocation, const FVector& EndLocation, ECollisionChannel CollisionChannel)
 {
-	FHitResult HitResult;
-	FVector StartLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z + 1000.0f); // Start above the terrain
-	FVector EndLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z - 10000.0f);  // End below the terrain
+	FCollisionQueryParams QueryParams;
+	return GetWorld()->LineTraceSingleByChannel(OutHitResult, StartLocation, EndLocation, CollisionChannel, QueryParams);
+}
 
-	if (PerformRaycast(HitResult, StartLocation, EndLocation, ECC_Visibility))
+// Update the minimap with the player's position and other relevant info
+void ARTSPlayerController::UpdateMinimap()
+{
+	if (UMiniMapWidget* MiniMapWidget = RTShud->GetMiniMapWidget())
 	{
-		OutTerrainHeight = HitResult.Location.Z;
-		return true;
-	}
+		FVector PlayerWorldPosition = GetPawn()->GetActorLocation();
+		FVector2D MiniMapPosition = MiniMapWidget->WorldToMiniMapPosition(PlayerWorldPosition);
 
-	return false;
+		MiniMapWidget->UpdatePlayerIconPosition(MiniMapPosition);
+	}
+}
+
+bool ARTSPlayerController::CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents)
+{
+	// Check if the terrain is flat enough
+	bool bIsTerrainFlat = IsTerrainFlat(BuildingLocation, BuildingExtents, 10.0f); // 10.0f tolerance for slope
+
+	// Check if there are no other buildings or units in the way
+	bool bIsLocationFree = IsLocationFreeOfObstacles(BuildingLocation, BuildingExtents);
+
+	// Return true only if both conditions are met
+	return bIsTerrainFlat && bIsLocationFree;
 }
 
 bool ARTSPlayerController::IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance)
@@ -351,18 +370,6 @@ bool ARTSPlayerController::IsTerrainFlat(FVector BuildingLocation, FVector Build
 	return false; // If we couldn't get terrain height at some point
 }
 
-bool ARTSPlayerController::CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents)
-{
-	// Check if the terrain is flat enough
-	bool bIsTerrainFlat = IsTerrainFlat(BuildingLocation, BuildingExtents, 10.0f); // 10.0f tolerance for slope
-
-	// Check if there are no other buildings or units in the way
-	bool bIsLocationFree = IsLocationFreeOfObstacles(BuildingLocation, BuildingExtents);
-
-	// Return true only if both conditions are met
-	return bIsTerrainFlat && bIsLocationFree;
-}
-
 bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, FVector BuildingExtents)
 {
 	// Define the box extents for the building
@@ -371,7 +378,7 @@ bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, F
 	// Perform a box sweep to detect overlapping actors
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(Building); // Ignore the preview itself
+	QueryParams.AddIgnoredActor(SelectedBuilding); // Ignore the preview itself
 
 	bool bHit = GetWorld()->SweepSingleByChannel(
 		HitResult,
@@ -386,12 +393,17 @@ bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, F
 	return !bHit; // Return true if no hit (i.e., no obstacles detected)
 }
 
-bool ARTSPlayerController::PerformRaycast(FHitResult& OutHitResult, const FVector& StartLocation, const FVector& EndLocation, ECollisionChannel CollisionChannel)
+bool ARTSPlayerController::GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight)
 {
-	// Perform a line trace (raycast)
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(Building); // Ignore the building preview
+	FHitResult HitResult;
+	FVector StartLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z + 1000.0f); // Start above the terrain
+	FVector EndLocation = FVector(InLocation.X, InLocation.Y, InLocation.Z - 10000.0f);  // End below the terrain
 
-	return GetWorld()->LineTraceSingleByChannel(OutHitResult, StartLocation, EndLocation, CollisionChannel, QueryParams);
+	if (PerformRaycast(HitResult, StartLocation, EndLocation, ECC_Visibility))
+	{
+		OutTerrainHeight = HitResult.Location.Z;
+		return true;
+	}
+
+	return false;
 }
-
