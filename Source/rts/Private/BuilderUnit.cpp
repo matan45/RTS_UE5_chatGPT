@@ -13,6 +13,11 @@ ABuilderUnit::ABuilderUnit()
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	GetCapsuleComponent()->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel1);  // Use the custom channel you created
+
+	// In constructor, initialize the range
+	FogOfWarRange = CreateDefaultSubobject<USphereComponent>(TEXT("FogOfWarRange"));
+	FogOfWarRange->SetupAttachment(RootComponent);
+	FogOfWarRange->SetSphereRadius(ViewRage); // Adjust this as needed
 }
 
 // Called when the game starts or when spawned

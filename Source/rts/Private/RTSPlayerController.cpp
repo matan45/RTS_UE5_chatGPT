@@ -14,10 +14,6 @@ ARTSPlayerController::ARTSPlayerController()
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
-
-	// Create the Camera Component
-	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
-	CameraComponent->SetupAttachment(RootComponent);
 }
 
 // Called when the game starts
@@ -52,15 +48,15 @@ void ARTSPlayerController::SetupInputComponent()
 
 		if (IA_MoveForward)
 		{
-			EnhancedInputComponent->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraForward);
+			EnhancedInputComponent->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &ARTSPlayerController::MovePlayerForwardAndBackward);
 		}
 		if (IA_MoveRight)
 		{
-			EnhancedInputComponent->BindAction(IA_MoveRight, ETriggerEvent::Triggered, this, &ARTSPlayerController::MoveCameraRight);
+			EnhancedInputComponent->BindAction(IA_MoveRight, ETriggerEvent::Triggered, this, &ARTSPlayerController::MovePlayerRightAndLeft);
 		}
 		if (IA_Zoom)
 		{
-			EnhancedInputComponent->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &ARTSPlayerController::ZoomCamera);
+			EnhancedInputComponent->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &ARTSPlayerController::ZoomInAndOut);
 		}
 		if (IA_Select)
 		{
@@ -71,26 +67,26 @@ void ARTSPlayerController::SetupInputComponent()
 			EnhancedInputComponent->BindAction(IA_Cancel, ETriggerEvent::Triggered, this, &ARTSPlayerController::Cancel);
 		}
 		if (IA_Right_Click) {
-			EnhancedInputComponent->BindAction(IA_Right_Click, ETriggerEvent::Started, this, &ARTSPlayerController::StartCameraRotation);
-			EnhancedInputComponent->BindAction(IA_Right_Click, ETriggerEvent::Completed, this, &ARTSPlayerController::StopCameraRotation);
+			EnhancedInputComponent->BindAction(IA_Right_Click, ETriggerEvent::Started, this, &ARTSPlayerController::StartPlayerRotation);
+			EnhancedInputComponent->BindAction(IA_Right_Click, ETriggerEvent::Completed, this, &ARTSPlayerController::StopPlayerRotation);
 		}
 	}
 
 }
 
-void ARTSPlayerController::StartCameraRotation(const FInputActionValue& Value)
+void ARTSPlayerController::StartPlayerRotation(const FInputActionValue& Value)
 {
-	bIsRotatingCamera = true;
+	IsPlayerRotating = true;
 	// Store the initial mouse position when the rotation starts
 	FVector2D MousePosition;
 	if (GetMousePosition(MousePosition.X, MousePosition.Y)) {
-		PreviousMousePosition = MousePosition;
+		PreviousPlayerMouseLocation = MousePosition;
 	}
 }
 
-void ARTSPlayerController::StopCameraRotation(const FInputActionValue& Value)
+void ARTSPlayerController::StopPlayerRotation(const FInputActionValue& Value)
 {
-	bIsRotatingCamera = false;
+	IsPlayerRotating = false;
 }
 
 // Called every frame
@@ -100,11 +96,11 @@ void ARTSPlayerController::Tick(float DeltaTime)
 
 	HandleEdgeScrolling(DeltaTime);
 
-	UpdatePawnLocation(DeltaTime);
+	UpdatePlayerLocation(DeltaTime);
 
 	UpdatePlayerRotation();
 
-	if (SelectedBuilding && SelectedBuilding->IsPreviewBuildingMesh())
+	if (SelectedBuilding && SelectedBuilding->GetBuildingState() == EBuildingState::Preview)
 	{
 		UpdateBuildingPreview();
 	}
@@ -113,19 +109,19 @@ void ARTSPlayerController::Tick(float DeltaTime)
 }
 
 // Camera movement
-void ARTSPlayerController::MoveCameraForward(const FInputActionValue& Value)
+void ARTSPlayerController::MovePlayerForwardAndBackward(const FInputActionValue& Value)
 {
-	CameraMovementInput.Y = Value.Get<float>();
+	PlayerMouseLocation.Y = Value.Get<float>();
 }
 
-void ARTSPlayerController::MoveCameraRight(const FInputActionValue& Value)
+void ARTSPlayerController::MovePlayerRightAndLeft(const FInputActionValue& Value)
 {
-	CameraMovementInput.X = Value.Get<float>();
+	PlayerMouseLocation.X = Value.Get<float>();
 }
 
-void ARTSPlayerController::ZoomCamera(const FInputActionValue& Value)
+void ARTSPlayerController::ZoomInAndOut(const FInputActionValue& Value)
 {
-	CameraZoomInput = Value.Get<float>();
+	PlayerZoomInput = Value.Get<float>();
 }
 
 void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
@@ -141,28 +137,28 @@ void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
 
 		if (MousePosition.X <= EdgeScrollThreshold)
 		{
-			CameraMovementInput.X = -1;
+			PlayerMouseLocation.X = -1;
 		}
 		else if (MousePosition.X >= ViewportSize.X - EdgeScrollThreshold)
 		{
-			CameraMovementInput.X = 1;
+			PlayerMouseLocation.X = 1;
 		}
 		else
 		{
-			CameraMovementInput.X = 0;
+			PlayerMouseLocation.X = 0;
 		}
 
 		if (MousePosition.Y <= EdgeScrollThreshold)
 		{
-			CameraMovementInput.Y = 1;
+			PlayerMouseLocation.Y = 1;
 		}
 		else if (MousePosition.Y >= ViewportSize.Y - EdgeScrollThreshold)
 		{
-			CameraMovementInput.Y = -1;
+			PlayerMouseLocation.Y = -1;
 		}
 		else
 		{
-			CameraMovementInput.Y = 0;
+			PlayerMouseLocation.Y = 0;
 		}
 	}
 }
@@ -170,28 +166,28 @@ void ARTSPlayerController::HandleEdgeScrolling(float DeltaTime)
 
 void ARTSPlayerController::UpdatePlayerRotation()
 {
-	if (bIsRotatingCamera)
+	if (IsPlayerRotating)
 	{
 		FVector2D CurrentMousePosition;
 		if (GetMousePosition(CurrentMousePosition.X, CurrentMousePosition.Y))
 		{
-			FVector2D MouseDelta = CurrentMousePosition - PreviousMousePosition;
+			FVector2D MouseDelta = CurrentMousePosition - PreviousPlayerMouseLocation;
 
 			// Rotate the camera based on the mouse delta movement
 			if (APawn* ControlledPawn = GetPawn())
 			{
 				FRotator CurrentRotation = ControlledPawn->GetActorRotation();
-				CurrentRotation.Yaw += MouseDelta.X * CameraYawInput;  // Rotate horizontally based on mouse X
+				CurrentRotation.Yaw += MouseDelta.X * PlayerYawInput;  // Rotate horizontally based on mouse X
 				ControlledPawn->SetActorRotation(CurrentRotation);
 			}
 
 			// Store the new mouse position for the next frame
-			PreviousMousePosition = CurrentMousePosition;
+			PreviousPlayerMouseLocation = CurrentMousePosition;
 		}
 	}
 }
 
-void ARTSPlayerController::UpdatePawnLocation(float DeltaTime)
+void ARTSPlayerController::UpdatePlayerLocation(float DeltaTime)
 {
 	if (APawn* ControlledPawn = GetPawn())  // Get the pawn controlled by the player
 	{
@@ -203,14 +199,14 @@ void ARTSPlayerController::UpdatePawnLocation(float DeltaTime)
 		FVector CameraRight = FRotationMatrix(CameraRotation).GetScaledAxis(EAxis::Y);   // Right direction relative to the camera
 
 		// Calculate the movement direction based on input
-		FVector MovementDirection = (CameraForward * CameraMovementInput.Y) + (CameraRight * CameraMovementInput.X);
+		FVector MovementDirection = (CameraForward * PlayerMouseLocation.Y) + (CameraRight * PlayerMouseLocation.X);
 		MovementDirection = MovementDirection.GetSafeNormal(); // Normalize to avoid faster diagonal movement
 
 		// Get the current location of the pawn
 		FVector CurrentLocation = ControlledPawn->GetActorLocation();
 
 		// Calculate the target location based on the movement direction and camera speed
-		FVector TargetLocation = CurrentLocation + (MovementDirection * CameraSpeed * DeltaTime);
+		FVector TargetLocation = CurrentLocation + (MovementDirection * PlayerSpeed * DeltaTime);
 
 		// Smooth the movement with interpolation
 		FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, 5.0f);  // Smooth movement
@@ -220,17 +216,26 @@ void ARTSPlayerController::UpdatePawnLocation(float DeltaTime)
 	}
 
 	// Reset the camera movement input after processing
-	CameraMovementInput = FVector2D::ZeroVector;
+	PlayerMouseLocation = FVector2D::ZeroVector;
 }
 
 // Handle building selection
 void ARTSPlayerController::Select(const FInputActionValue& Value)
 {
-	if (SelectedBuilding && SelectedBuilding->IsPreviewBuildingMesh())
+	
+	if (SelectedBuilding && SelectedBuilding->GetBuildingState() == EBuildingState::Preview)
 	{
 		if (CanPlaceBuildingAtLocation(SelectedBuilding->GetActorLocation(), SelectedBuilding->GetBuildingExtents())) {
-			//todo start building
-		}
+			//notify the builder to start building move near the point and when builder is near the 
+			//building point then it call the building method for contraction the building
+			//the building class will have method for contraction the building and show the progress on text 
+			//when done notify the player and the building will show the mesh building
+			//if the builder is move and the contraction is not complete then i build progress will pose
+			//only one builder can contraction one building
+		} 
+	}
+	else if (SelectedBuilderUnit) {
+		//move builder to location and stop the contraction of the building from mouse locatin
 	}
 	else {
 
@@ -256,12 +261,7 @@ void ARTSPlayerController::Select(const FInputActionValue& Value)
 			// Perform the trace
 			if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_GameTraceChannel1, QueryParams))
 			{
-				//deselect
-				if (SelectedBuilderUnit) {
-					SelectedBuilderUnit->DisplayUI(false);
-					SelectedBuilderUnit = nullptr;
-				}
-
+				Deselect();
 				AActor* HitActor = HitResult.GetActor();
 				UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());
 
@@ -301,6 +301,7 @@ void ARTSPlayerController::Cancel(const FInputActionValue& Value)
 		SelectedBuilding->Destroy();
 		SelectedBuilding = nullptr;
 	}
+	Deselect();
 }
 
 // Start the preview building selection process
@@ -333,7 +334,7 @@ void ARTSPlayerController::UpdateBuildingPreview()
 				FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, GetWorld()->GetDeltaSeconds(), 10.0f); // Adjust interpolation speed
 				SelectedBuilding->SetActorLocation(NewLocation);
 
-				SelectedBuilding->SetActorEnableCollision(true);
+				SelectedBuilding->SetActorEnableCollision(true);//bug the preview building can move the pawn
 				if (CanPlaceBuildingAtLocation(NewLocation, SelectedBuilding->GetBuildingExtents())) {
 					SelectedBuilding->UpdatePlacementMaterial(true);
 					UE_LOG(LogTemp, Warning, TEXT("can place."));
@@ -376,7 +377,7 @@ bool ARTSPlayerController::PerformRaycast(FHitResult& OutHitResult, const FVecto
 	return GetWorld()->LineTraceSingleByChannel(OutHitResult, StartLocation, EndLocation, CollisionChannel, QueryParams);
 }
 
-// Update the minimap with the player's position and other relevant info
+// Update the minimap with the player's position
 void ARTSPlayerController::UpdateMinimap()
 {
 	if (UMiniMapWidget* MiniMapWidget = RTShud->GetMiniMapWidget())
@@ -385,6 +386,16 @@ void ARTSPlayerController::UpdateMinimap()
 		FVector2D MiniMapPosition = MiniMapWidget->WorldToMiniMapPosition(PlayerWorldPosition);
 
 		MiniMapWidget->UpdatePlayerIconPosition(MiniMapPosition);
+	}
+}
+
+
+void ARTSPlayerController::Deselect()
+{
+	//deSelect
+	if (SelectedBuilderUnit) {
+		SelectedBuilderUnit->DisplayUI(false);
+		SelectedBuilderUnit = nullptr;
 	}
 }
 
@@ -402,6 +413,7 @@ bool ARTSPlayerController::CanPlaceBuildingAtLocation(FVector BuildingLocation, 
 
 bool ARTSPlayerController::IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance)
 {
+	//need also support rotation
 	FVector Corner1 = BuildingLocation + FVector(BuildingExtents.X, BuildingExtents.Y, 0);
 	FVector Corner2 = BuildingLocation + FVector(BuildingExtents.X, -BuildingExtents.Y, 0);
 	FVector Corner3 = BuildingLocation + FVector(-BuildingExtents.X, BuildingExtents.Y, 0);
@@ -435,16 +447,16 @@ bool ARTSPlayerController::IsLocationFreeOfObstacles(FVector BuildingLocation, F
 	QueryParams.AddIgnoredActor(SelectedBuilding); // Ignore the preview itself
 	QueryParams.AddIgnoredActor(GetPawn()); // Ignore the preview itself
 
-
 	bool bHit = GetWorld()->SweepSingleByChannel(
 		HitResult,
 		BuildingLocation,
 		BuildingLocation,
-		FQuat::Identity, // No rotation, adjust if needed
+		FQuat::Identity, // need also support rotation
 		ECC_GameTraceChannel1, // Channel to detect static objects (like other buildings)
 		BoxCollision,
 		QueryParams
 	);
+
 	if (HitResult.GetActor()) {
 		AActor* HitActor = HitResult.GetActor();
 		UE_LOG(LogTemp, Warning, TEXT("Hit Actor: %s"), *HitActor->GetName());

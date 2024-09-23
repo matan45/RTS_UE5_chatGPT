@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/SphereComponent.h"
 #include "Building.generated.h"
 
+class UMiniMapWidget;
 
 UENUM(BlueprintType)
 enum class EBuildingState : uint8
@@ -19,36 +21,73 @@ UCLASS()
 class RTS_API ABuilding : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	// Sets default values for this actor's properties
 	ABuilding();
 
 	virtual void Tick(float DeltaTime) override;
-	bool IsPreviewBuildingMesh() const;
-	bool IsBuildingMesh() const;
-	bool IsStartBuildingMesh() const;
+
 	FVector GetBuildingExtents() {
 		return PreviewBuildingMesh->GetStaticMesh()->GetBounds().BoxExtent;
+	}
+
+	EBuildingState GetBuildingState() {
+		return CurrentState;
 	}
 
 	// Function to change the building state and update mesh visibility accordingly
 	void SetBuildingState(EBuildingState NewState);
 	// Helper to update materials based on validity of placement
 	void UpdatePlacementMaterial(bool bIsValid);
-	
+
+	virtual float TakeDamage(
+		float DamageAmount,
+		const FDamageEvent& DamageEvent,
+		AController* EventInstigator,
+		AActor* DamageCauser
+	) override;
+	void Construction(float DeltaTime);
+
+	// Function to add a unit to the training queue
+	void AddUnitToQueue(TSubclassOf<AActor> UnitClass);
+
+	// Function to start training the next unit in the queue
+	void TrainNextUnit();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	// Adding range view for Fog of War
+	UPROPERTY(VisibleAnywhere, Category = "Building|FogOfWar")
+	USphereComponent* FogOfWarRange;
+	UPROPERTY(VisibleAnywhere, Category = "Building|FogOfWar")
+	float ViewRage = 1000.0f;
+
+	//Hp
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building|Stats")
+	float BuildingHealth = 100.0f;
+
+	//really point
+	UPROPERTY(BlueprintReadWrite, Category = "Building|Rally")
+	FVector RallyPoint;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Building|Construction")
+	// Placeholder for construction time and progress
+	float ConstructionTime = 10.0f;
+	float ElapsedConstructionTime = 0.0f;
 	
-	//TODO 
-	//add unit widget ui for selet with building to build
-	//add mesh
-	//add hp
-	//add queue for training units
-	//add really point
-	//add mini map icon
-	//show constraction proggres bar
+	// Unit training queue and timer
+	UPROPERTY(VisibleAnywhere, Category = "Building|Training")
+	TArray<TSubclassOf<AActor>> TrainingQueue;
+
+	UPROPERTY(EditAnywhere, Category = "Building|Training")
+	float UnitTrainingTime;  // Time to train each unit
+
+	FTimerHandle TrainingTimerHandle;
+
+	
 private:
 
 	// Dynamic materials to show valid/invalid placement
@@ -75,4 +114,9 @@ private:
 	void SetBuildingMesh(bool Visible);
 	void SetStartBuildingMesh(bool Visible);
 
+	// Function to handle spawning a unit after training
+	void SpawnTrainedUnit(TSubclassOf<AActor> UnitClass);
+
+	//add mini map icon
+	UMiniMapWidget* MiniMap;
 };

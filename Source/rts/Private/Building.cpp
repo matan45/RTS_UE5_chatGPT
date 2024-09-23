@@ -26,6 +26,11 @@ ABuilding::ABuilding()
 
 	// Initialize building state
 	CurrentState = EBuildingState::Preview;
+
+	// In constructor, initialize the range
+	FogOfWarRange = CreateDefaultSubobject<USphereComponent>(TEXT("FogOfWarRange"));
+	FogOfWarRange->SetupAttachment(RootComponent);
+	FogOfWarRange->SetSphereRadius(ViewRage); // Adjust this as needed
 }
 
 // Called every frame
@@ -42,22 +47,6 @@ void ABuilding::BeginPlay()
 	Super::BeginPlay();
 	// Initially set the building in preview mode
 	SetBuildingState(EBuildingState::Preview);
-}
-
-// Methods to toggle visibility of building components
-bool ABuilding::IsPreviewBuildingMesh() const
-{
-	return PreviewBuildingMesh ? PreviewBuildingMesh->IsVisible() : false;
-}
-
-bool ABuilding::IsBuildingMesh() const
-{
-	return BuildingMesh ? BuildingMesh->IsVisible() : false;
-}
-
-bool ABuilding::IsStartBuildingMesh() const
-{
-	return StartBuildingMesh ? StartBuildingMesh->IsVisible() : false;
 }
 
 void ABuilding::SetPreviewBuildingMesh(bool Visible)
@@ -127,6 +116,105 @@ void ABuilding::UpdatePlacementMaterial(bool bIsValid)
 		else if (!bIsValid && InvalidLocationMaterial)
 		{
 			PreviewBuildingMesh->SetMaterial(0, InvalidLocationMaterial);
+		}
+	}
+}
+
+float ABuilding::TakeDamage(
+	float DamageAmount,
+	const FDamageEvent& DamageEvent,
+	AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	// You can add custom logic here for how the building takes damage
+	// For example, reduce health based on DamageAmount
+	BuildingHealth -= DamageAmount;
+
+	// Check if the building should be destroyed
+	if (BuildingHealth <= 0.0f)
+	{
+		// Optionally destroy the building or handle destruction logic
+		Destroy();
+	}
+
+	// Optionally call the base class implementation if needed
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
+
+void ABuilding::Construction(float DeltaTime)
+{
+	if (CurrentState == EBuildingState::UnderConstruction)
+	{
+		ElapsedConstructionTime += DeltaTime;
+		float Progress = ElapsedConstructionTime / ConstructionTime;
+		//show contraction progress bar
+		// Example: Update your progress bar in UI (bind or call a Blueprint function)
+		if (Progress >= 1.0f)
+		{
+			SetBuildingState(EBuildingState::Completed);
+			//and notify user
+		}
+	}
+}
+
+// Add a unit to the queue and start training if not already
+void ABuilding::AddUnitToQueue(TSubclassOf<AActor> UnitClass)
+{
+	if (UnitClass)
+	{
+		TrainingQueue.Add(UnitClass);
+		UE_LOG(LogTemp, Log, TEXT("Unit added to training queue"));
+
+		// If this is the only unit in the queue, start training immediately
+		if (TrainingQueue.Num() == 1)
+		{
+			TrainNextUnit();
+		}
+	}
+}
+
+// Train the next unit in the queue
+void ABuilding::TrainNextUnit()
+{
+	if (TrainingQueue.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Training next unit..."));
+
+		// Set a timer to simulate unit training over time
+		GetWorld()->GetTimerManager().SetTimer(TrainingTimerHandle, this, &ABuilding::TrainNextUnit, UnitTrainingTime, false);
+
+		// Get the unit class at the front of the queue
+		TSubclassOf<AActor> UnitClass = TrainingQueue[0];
+
+		// Remove the unit from the queue (front of the queue)
+		TrainingQueue.RemoveAt(0);
+
+		// After training time, spawn the unit
+		SpawnTrainedUnit(UnitClass);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Training queue is empty."));
+	}
+}
+
+// Function to spawn the unit after training is done
+void ABuilding::SpawnTrainedUnit(TSubclassOf<AActor> UnitClass)
+{
+	if (UnitClass)
+	{
+		// Example: spawn the unit near the building's location
+		FVector SpawnLocation = GetActorLocation() + FVector(200.0f, 0.0f, 0.0f); // Adjust as needed
+		FRotator SpawnRotation = FRotator::ZeroRotator;
+
+		// Spawn the unit
+		GetWorld()->SpawnActor<AActor>(UnitClass, SpawnLocation, SpawnRotation);
+		UE_LOG(LogTemp, Log, TEXT("Unit trained and spawned."));
+
+		// Check if there are more units to train in the queue
+		if (TrainingQueue.Num() > 0)
+		{
+			TrainNextUnit();  // Continue training the next unit
 		}
 	}
 }

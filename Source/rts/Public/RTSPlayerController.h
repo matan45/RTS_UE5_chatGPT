@@ -24,33 +24,39 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void Tick(float DeltaTime) override;
 
-	// Camera movement and zoom
-	void MoveCameraForward(const FInputActionValue& Value);
-	void MoveCameraRight(const FInputActionValue& Value);
-	void ZoomCamera(const FInputActionValue& Value);
-	void StartCameraRotation(const FInputActionValue& Value);
-	void StopCameraRotation(const FInputActionValue& Value);
+	// handle player movement and zoom
+	void MovePlayerForwardAndBackward(const FInputActionValue& Value);
+	void MovePlayerRightAndLeft(const FInputActionValue& Value);
+	void ZoomInAndOut(const FInputActionValue& Value);
+	void StartPlayerRotation(const FInputActionValue& Value);
+	void StopPlayerRotation(const FInputActionValue& Value);
+	void UpdatePlayerRotation();
 
 	// Edge scrolling based on mouse position
 	void HandleEdgeScrolling(float DeltaTime);
-	void UpdatePlayerRotation();
 
 	// Select and cancel actions
 	void Select(const FInputActionValue& Value);
 	void Cancel(const FInputActionValue& Value);
 
 private:
-	// Camera movement state
-	FVector2D CameraMovementInput;
-	bool bIsRotatingCamera;
-	FVector2D PreviousMousePosition;
+	// Player movement state
+	FVector2D PlayerMouseLocation;
+	bool IsPlayerRotating;
+	FVector2D PreviousPlayerMouseLocation;
 
-	float CameraZoomInput;
-	UPROPERTY(EditAnywhere, Category = "Camera")
-	float CameraYawInput = 0.1f; // Adjust this for faster/slower rotation
+	float PlayerZoomInput;
+	float PlayerYawInput = 0.1f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* CameraComponent;
+	UPROPERTY(EditAnywhere)
+	float PlayerSpeed = 2000.0f;
+
+	UPROPERTY(EditAnywhere)
+	float PlayerZoomSpeed = 500.0f;
+
+	// Edge scrolling
+	UPROPERTY(EditAnywhere)
+	float EdgeScrollThreshold = 50.0f;
 
 	// Input mapping and actions
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -72,30 +78,23 @@ private:
 	UInputAction* IA_Cancel;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* IA_Right_Click;
+	//TODO add middle mouse action for rotate preview building
 
-	// Camera movement properties
-	UPROPERTY(EditAnywhere)
-	float CameraSpeed = 2000.0f;
-
-	UPROPERTY(EditAnywhere)
-	float CameraZoomSpeed = 500.0f;
-
-	UPROPERTY(EditAnywhere)
-	float EdgeScrollThreshold = 50.0f;
-
-	//void UpdateCameraComponentLocation(float DeltaTime);
-	void UpdatePawnLocation(float DeltaTime);
+	//void UpdatePlayerLocation(float DeltaTime);
+	void UpdatePlayerLocation(float DeltaTime);
 
 	// Manage building previews and placement
 	void UpdateBuildingPreview();
+
+
+	// helper functions
 	bool GetMouseHitLocation(FVector& OutHitLocation);
 	bool CanPlaceBuildingAtLocation(FVector BuildingLocation, FVector BuildingExtents);
 	bool IsTerrainFlat(FVector BuildingLocation, FVector BuildingExtents, float Tolerance);
 	bool IsLocationFreeOfObstacles(FVector BuildingLocation, FVector BuildingExtents);
 	bool GetTerrainHeightAtLocation(const FVector& InLocation, float& OutTerrainHeight);
-
-	// Input helpers for building selection and terrain validation
 	bool PerformRaycast(FHitResult& OutHitResult, const FVector& StartLocation, const FVector& EndLocation, ECollisionChannel CollisionChannel);
+	void Deselect();
 
 	// Update minimap with player position
 	void UpdateMinimap();
